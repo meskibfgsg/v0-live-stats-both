@@ -970,18 +970,19 @@ client.on("messageCreate", async (message) => {
   // ── !ticket ──
   if (content === `${PREFIX}ticket`) {
     const ticketEmbed = new EmbedBuilder()
-      .setDescription(
-        "*<a:emoji_13:1508646379751342130> ᴄʟɪᴄᴋ ʙᴇʟᴏᴡ ᴛᴏ ᴄʀᴇᴀᴛᴇ ᴀ ꜱᴜᴘᴘᴏʀᴛ ᴛɪᴄᴋᴇᴛ ɪꜰ ʏᴏᴜ ʜᴀᴠᴇ ᴀɴʏ ᴄᴏɴᴄᴇʀɴꜱ ᴊᴜꜱᴛ ᴄʀᴇᴀᴛᴇ ᴀ ᴛɪᴄᴋᴇᴛ*"
-      )
-      .setImage("https://cdn.discordapp.com/attachments/1526768353761427456/1527916930441412618/a_3ce24509633cbbceab6dbbd4502d1ef8.gif?ex=6a5c6707&is=6a5b1587&hm=a281dd7928a445ea08a1a83146cc512b2322379ffbca7b038fe98720c66a7566&")
-      .setThumbnail("https://cdn.discordapp.com/attachments/1526768353761427456/1527917480398557275/d_discord.png?ex=6a5c678a&is=6a5b160a&hm=5f07069678e350d5e0407caccb642ea22b488df3798a199494e71f0ee7fccda2&");
+      .setTitle("@ꜱᴜᴘᴘᴏʀᴛ")
+      .setDescription("To create a ticket use the Create ticket button")
+      .setFooter({
+        text: "Ticketing without clutter",
+        iconURL: client.user.displayAvatarURL({ dynamic: true }),
+      });
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId("ticket_create")
-        .setLabel("ᴏᴘᴇɴ ᴛɪᴄᴋᴇᴛ")
+        .setLabel("Create ticket")
         .setStyle(ButtonStyle.Primary)
-        .setEmoji({ id: "1508646379751342130", name: "emoji_13", animated: true })
+        .setEmoji({ id: "1537409441073209504", name: "emoji_1", animated: false })
     );
 
     await message.channel.send({ embeds: [ticketEmbed], components: [row] });

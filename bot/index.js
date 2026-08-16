@@ -712,19 +712,34 @@ client.on("messageCreate", async (message) => {
         return;
       }
 
-      let added = 0;
-      let skipped = 0;
-      for (const entry of entries) {
-        if (message.guild.emojis.cache.some((emoji) => emoji.name === entry.name)) { skipped++; continue; }
-        try {
-          await message.guild.emojis.create({ attachment: entry.url, name: entry.name, reason: `Bulk emoji import by ${message.author.tag}` });
-          added++;
-        } catch (error) {
-          console.error(`[v0] Failed to add emoji ${entry.name}:`, error.message);
-          skipped++;
+      // Finish extraction first, then submit every new emoji creation together.
+      const existingNames = new Set(message.guild.emojis.cache.map((emoji) => emoji.name.toLowerCase()));
+      const namesInBatch = new Set();
+      const toAdd = entries.filter((entry) => {
+        const name = entry.name.toLowerCase();
+        if (existingNames.has(name) || namesInBatch.has(name)) return false;
+        namesInBatch.add(name);
+        return true;
+      });
+      const skipped = entries.length - toAdd.length;
+
+      const results = await Promise.allSettled(
+        toAdd.map((entry) =>
+          message.guild.emojis.create({
+            attachment: entry.url,
+            name: entry.name,
+            reason: `Bulk emoji import by ${message.author.tag}`,
+          })
+        )
+      );
+      const added = results.filter((result) => result.status === "fulfilled").length;
+      const failed = results.length - added;
+      results.forEach((result, index) => {
+        if (result.status === "rejected") {
+          console.error(`[v0] Failed to add emoji ${toAdd[index].name}:`, result.reason?.message || result.reason);
         }
-      }
-      await message.reply(`Emoji import complete: added **${added}**, skipped **${skipped}**.`);
+      });
+      await message.reply(`Emoji import complete: extracted **${entries.length}**, added **${added}**, skipped **${skipped}**, failed **${failed}**.`);
     } catch (error) {
       console.error("[v0] !addmassemoji failed:", error);
       await message.reply("I could not read that JSON or add its emojis. Check the link, permissions, and server emoji limit.");
@@ -2883,7 +2898,7 @@ client.on("messageCreate", async (message) => {
     const embed = new EmbedBuilder()
       .setDescription(
         "**─── <a:emoji_8:1506236357775720548> `ɪɴꜱᴀɴɪᴛʏ   | ʜʏᴘᴇʀʟɪɴᴋ` <a:emoji_8:1506236357775720548> ───\n\n" +
-        "<a:emoji_13:1508646379751342130> ᴜꜱᴇ ᴛʜɪꜱ ᴛᴏᴏʟ ᴛᴏ ɢᴇɴᴇʀᴀᴛᴇ ʜʏᴘᴇʀʟɪɴᴋꜱ ᴛʜᴀᴛ ʙʏᴘᴀꜱꜱ ᴅɪꜱᴄᴏʀᴅ ᴡᴀʀɴɪɴɢꜱ\n\n" +
+        "<a:emoji_13:1508646379751342130> ᴜꜱᴇ ᴛʜɪꜱ ᴛᴏᴏʟ ᴛᴏ ɢᴇɴᴇʀᴀᴛᴇ ʜʏᴘᴇʀʟɪɴᴋꜱ ᴛʜᴀᴛ ʙʏᴘᴀꜱ�� ᴅɪꜱᴄᴏʀᴅ ᴡᴀʀɴɪɴɢꜱ\n\n" +
         "<:emoji_14:1508646444607864872> ʙᴇꜱᴛ ʜʏᴘᴇʀʟɪɴᴋ ᴏꜰ ᴀʟʟ ᴛɪᴍᴇ**"
       )
       .setImage("https://image2url.com/r2/default/gifs/1768488617981-bdc4c780-144f-4a40-8906-ddf01eadb705.gif")
@@ -3161,7 +3176,7 @@ To gain access to the rest of the channels of this server you will need to verif
         "<:emoji_14:1508646444607864872> **ᴡᴇʙʜᴏᴏᴋ ꜱᴇɴᴅᴇʀ** — ꜱᴇɴᴅ ᴄᴜꜱᴛᴏᴍ ᴡᴇʙʜᴏᴏᴋꜱ\n" +
         "<:emoji_14:1508646444607864872> **ᴄᴏᴏᴋɪᴇ ᴄʟᴇᴀɴᴇʀ** — ᴄʟᴇᴀɴ ᴄᴏᴏᴋɪᴇꜱ ɪɴ ᴏɴᴇ ᴄʟɪᴄᴋ\n" +
         "<:emoji_14:1508646444607864872> **ʜʏᴘᴇʀʟɪɴᴋ ꜱᴇɴᴅᴇʀ** — ᴍᴀꜱᴋᴇᴅ ʟɪɴᴋꜱ ᴛʜᴀᴛ ʙʏᴘᴀꜱꜱ ꜰʟᴀɢꜱ\n\n" +
-        "*ᴄʟɪᴄᴋ **Purchase** ᴛᴏ ᴏᴘᴇɴ ᴀ ᴘʀɪᴠᴀᴛᴇ ᴄʜᴀɴɴᴇʟ ᴀɴᴅ ᴘʟᴀᴄᴇ ʏᴏᴜʀ ᴏʀᴅᴇʀ.*"
+        "*ᴄʟɪᴄᴋ **Purchase** ᴛ��� ᴏᴘᴇɴ ᴀ ᴘʀɪᴠᴀᴛᴇ ᴄʜᴀɴɴᴇʟ ᴀɴᴅ ᴘʟᴀᴄᴇ ʏᴏᴜʀ ᴏʀᴅᴇʀ.*"
       )
       .setColor("#2f3136");
     await interaction.reply({ embeds: [listEmbed], ephemeral: true });

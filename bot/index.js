@@ -648,9 +648,13 @@ client.on("messageCreate", async (message) => {
       }
 
       const sourceMessage = await sourceChannel.messages.fetch(linkedMessageId);
+      // The JSON may be the embed's actual content, not a URL. Read both cases.
+      const jsonDocuments = [];
       const jsonUrls = new Set();
+      const embedText = [];
       const addJsonUrls = (value) => {
         if (typeof value !== "string") return;
+        embedText.push(value);
         for (const url of value.match(/https?:\/\/[^\s<>]+/gi) || []) {
           const cleanUrl = url.replace(/[)>\\]\\},]+$/, "");
           if (/\.json(?:\?|$)/i.test(cleanUrl)) jsonUrls.add(cleanUrl);
@@ -667,8 +671,16 @@ client.on("messageCreate", async (message) => {
         addJsonUrls(embed.footer?.text);
         for (const field of embed.fields || []) { addJsonUrls(field.name); addJsonUrls(field.value); }
       }
-      if (!jsonUrls.size) {
-        await message.reply("The linked message does not contain a JSON file or JSON URL in its embed.");
+
+      // Parse JSON blocks directly from embed title/description/fields/footer.
+      for (const text of embedText) {
+        const candidates = [text, ...(text.match(/```(?:json)?\\s*([\\s\\S]*?)```/i)?.[1] ? [text.match(/```(?:json)?\\s*([\\s\\S]*?)```/i)[1]] : [])];
+        for (const candidate of candidates) {
+          try { jsonDocuments.push(JSON.parse(candidate.trim())); } catch {}
+        }
+      }
+      if (!jsonDocuments.length) {
+        await message.reply("The linked message has no readable JSON in its embed or attachment.");
         return;
       }
 
@@ -701,30 +713,41 @@ client.on("messageCreate", async (message) => {
         if (Array.isArray(value)) value.forEach(walkJson);
         else if (value && typeof value === "object") Object.values(value).forEach(walkJson);
       };
-      for (const jsonUrl of jsonUrls) {
-        const response = await fetch(jsonUrl);
-        if (!response.ok) throw new Error(`JSON download failed with status ${response.status}`);
-        walkJson(await response.json());
-      }
+      for (const document of jsonDocuments) walkJson(document);
 
       if (!entries.length) {
         await message.reply("No custom emojis were found in the JSON.");
         return;
       }
 
-      let added = 0;
-      let skipped = 0;
-      for (const entry of entries) {
-        if (message.guild.emojis.cache.some((emoji) => emoji.name === entry.name)) { skipped++; continue; }
-        try {
-          await message.guild.emojis.create({ attachment: entry.url, name: entry.name, reason: `Bulk emoji import by ${message.author.tag}` });
-          added++;
-        } catch (error) {
-          console.error(`[v0] Failed to add emoji ${entry.name}:`, error.message);
-          skipped++;
+      // Finish extraction first, then submit every new emoji creation together.
+      const existingNames = new Set(message.guild.emojis.cache.map((emoji) => emoji.name.toLowerCase()));
+      const namesInBatch = new Set();
+      const toAdd = entries.filter((entry) => {
+        const name = entry.name.toLowerCase();
+        if (existingNames.has(name) || namesInBatch.has(name)) return false;
+        namesInBatch.add(name);
+        return true;
+      });
+      const skipped = entries.length - toAdd.length;
+
+      const results = await Promise.allSettled(
+        toAdd.map((entry) =>
+          message.guild.emojis.create({
+            attachment: entry.url,
+            name: entry.name,
+            reason: `Bulk emoji import by ${message.author.tag}`,
+          })
+        )
+      );
+      const added = results.filter((result) => result.status === "fulfilled").length;
+      const failed = results.length - added;
+      results.forEach((result, index) => {
+        if (result.status === "rejected") {
+          console.error(`[v0] Failed to add emoji ${toAdd[index].name}:`, result.reason?.message || result.reason);
         }
-      }
-      await message.reply(`Emoji import complete: added **${added}**, skipped **${skipped}**.`);
+      });
+      await message.reply(`Emoji import complete: extracted **${entries.length}**, added **${added}**, skipped **${skipped}**, failed **${failed}**.`);
     } catch (error) {
       console.error("[v0] !addmassemoji failed:", error);
       await message.reply("I could not read that JSON or add its emojis. Check the link, permissions, and server emoji limit.");
@@ -868,7 +891,7 @@ client.on("messageCreate", async (message) => {
         name: "ᴅᴜᴀʟʜᴏᴏᴋ",
         image1: "https://cdn.discordapp.com/attachments/1506434367491276812/1509399153321443388/image0_1.gif?ex=6a190901&is=6a17b781&hm=8d73fe9824d744a19022718c65a469779f8e8f9f86e82a0b5fda2f9010d9da5a",
         image2: "https://cdn.discordapp.com/attachments/1506434367491276812/1509394265141415936/1773637630733-5bee7763-8a95-48c0-8857-b9f2196e8d11.gif?ex=6a190473&is=6a17b2f3&hm=2866b7b7ca9eff6d39f1ccbc30640a1ee0fa62adac8619771cf9d455c329a76b",
-        body: "**── ᴅᴜᴀʟʜᴏᴏᴋ ᴍᴇᴛʜ ──**\n\n**ꜱᴛᴇᴘ 1: ᴄʀᴇᴀᴛᴇ ᴀ ꜱᴇʀᴠᴇʀ & ᴛʜᴇ ᴅᴜᴀʟʜᴏᴏᴋ ʟɪɴᴋ ɪɴ ᴛʜᴇ ᴡᴇʙꜱɪᴛᴇ ᴡʜᴇʀᴇ ʏᴏᴜ ᴀʀᴇ ᴛᴇᴀᴄʜɪɴɢ ᴍᴇᴍʙᴇʀꜱ ʜᴏᴡ ᴛᴏ ɢᴇᴛ ʜɪᴛꜱ ᴀᴛ ᴛʜᴇ ꜱᴀᴍᴇ ᴛɪᴍᴇ, ʏᴏᴜ'ʟʟ ʙᴇ ꜱᴛᴇᴀʟɪɴɢ ᴛʜᴇɪʀ ʜɪᴛꜱ**\n\n**ꜱᴛᴇᴘ 2: ʜᴇᴀᴅ ᴏᴠᴇʀ ᴛᴏ**\nhttps://discord.com/template/Cg2G6AdH6ZkR\n**ᴅᴏᴇꜱɴᴛ ʜᴀᴠᴇ ᴛᴏ ʙᴇ ᴇxᴀᴄᴛʟʏ ʟɪᴋᴇ ᴛʜᴀᴛ ʙᴜᴛ, ɪᴛ ᴅᴏᴇꜱ ʜᴀᴠᴇ ᴛᴏ ʜᴀᴠᴇ ᴛʜᴇ ꜱᴇʀᴠᴇʀ ᴀꜱᴘᴇᴄᴛꜱ.**\n\n**ꜱᴛᴇᴘ 3: ᴏɴᴄᴇ ʏᴏᴜ ꜰɪɴɪꜱʜᴇᴅ ᴡɪᴛʜ ʏᴏᴜʀ ᴡʜᴏʟᴇ ꜱᴇʀᴠᴇʀ ᴀɴᴅ ᴅᴏɴᴇ ᴡɪᴛʜ ɪᴛ, ᴛʀʏ ᴛᴏ ᴘᴀʀᴛɴᴇʀ ᴡɪᴛʜ ᴀꜱ ᴍᴀɴʏ ꜱᴇʀᴠᴇʀꜱ ᴀꜱ ʏᴏᴜ ᴄᴀɴ, ɪɴᴠɪᴛᴇ ʏᴏᴜʀ ꜰʀɪᴇɴᴅꜱ, ᴀɴᴅ ᴇᴠᴇɴ ꜱᴛᴇᴀʟ ᴍᴇᴍʙᴇʀꜱ ᴏᴜᴛ ᴏꜰ ᴅɪꜰꜰᴇʀᴇɴᴛ ꜱᴇʀᴠᴇʀꜱ ꜱᴇᴄʀᴇᴛʟʏ**\n\n**ꜱᴛᴇᴘ 4: ʏᴏᴜ ᴅᴏ ᴡᴀɴᴛ ᴛᴏ ʜᴀᴠᴇ ʏᴏᴜʀ ꜱᴇʀᴠᴇʀ ᴀᴄᴛɪᴠᴇ, ᴀᴅᴅ ᴍᴏᴅꜱ, ᴀᴅᴍɪɴꜱ, ᴀɴᴅ ᴍᴀʏʙᴇ ᴇᴠᴇɴ ᴀ ᴄᴏ-ᴏᴡɴᴇʀ!!**\n\n**ᴛᴜᴛᴏʀɪᴀʟ:**\nhttps://streamable.com/u88d7u"
+        body: "**── ᴅᴜᴀʟʜᴏᴏᴋ ᴍᴇᴛʜ ──**\n\n**ꜱᴛᴇᴘ 1: ᴄʀᴇᴀᴛᴇ ᴀ ꜱᴇʀᴠᴇʀ & ᴛʜᴇ ᴅᴜᴀʟʜᴏᴏᴋ ʟɪɴᴋ ɪɴ ᴛʜᴇ ᴡᴇʙꜱɪᴛᴇ ᴡʜᴇʀᴇ ʏᴏᴜ ᴀʀᴇ ᴛᴇᴀᴄʜɪɴɢ ᴍᴇᴍʙᴇʀꜱ ʜᴏᴡ ᴛᴏ ɢᴇᴛ ʜɪᴛꜱ ᴀᴛ ᴛʜᴇ ꜱᴀᴍᴇ ᴛɪᴍᴇ, ʏᴏᴜ'ʟʟ ʙᴇ ꜱᴛᴇᴀʟɪɴɢ ᴛʜᴇɪʀ ʜɪᴛꜱ**\n\n**ꜱᴛᴇᴘ 2: ʜᴇᴀᴅ ᴏᴠᴇʀ ᴛᴏ**\nhttps://discord.com/template/Cg2G6AdH6ZkR\n**ᴅᴏᴇꜱɴᴛ ʜᴀᴠᴇ ᴛᴏ ʙᴇ ᴇxᴀᴄᴛʟʏ ʟɪᴋᴇ ᴛʜᴀᴛ ʙᴜᴛ, ɪᴛ ᴅᴏᴇꜱ ʜᴀᴠᴇ ᴛᴏ ʜᴀᴠᴇ ᴛʜᴇ ꜱᴇʀᴠᴇʀ ᴀꜱᴘᴇᴄᴛꜱ.**\n\n**ꜱᴛᴇᴘ 3: ᴏɴᴄᴇ ʏᴏᴜ ꜰɪɴɪꜱʜᴇᴅ ᴡɪᴛʜ ʏᴏᴜʀ ᴡʜᴏʟᴇ ꜱᴇʀᴠ��ʀ ᴀɴᴅ ᴅᴏɴᴇ ᴡɪᴛʜ ɪᴛ, ᴛʀʏ ᴛᴏ ᴘᴀʀᴛɴᴇʀ ᴡɪᴛʜ ᴀꜱ ᴍᴀɴʏ ꜱᴇʀᴠᴇʀꜱ ᴀꜱ ʏᴏᴜ ᴄᴀɴ, ɪɴᴠɪᴛᴇ ʏᴏᴜʀ ꜰʀɪᴇɴᴅꜱ, ᴀɴᴅ ᴇᴠᴇɴ ꜱᴛᴇᴀʟ ᴍᴇᴍʙᴇʀꜱ ᴏᴜᴛ ᴏꜰ ᴅɪꜰꜰᴇʀᴇɴᴛ ꜱᴇʀᴠᴇʀꜱ ꜱᴇᴄʀᴇᴛʟʏ**\n\n**ꜱᴛᴇᴘ 4: ʏᴏᴜ ᴅᴏ ᴡᴀɴᴛ ᴛᴏ ʜᴀᴠᴇ ʏᴏᴜʀ ꜱᴇʀᴠᴇʀ ᴀᴄᴛɪᴠᴇ, ᴀᴅᴅ ᴍᴏᴅꜱ, ᴀᴅᴍɪɴꜱ, ᴀɴᴅ ᴍᴀʏʙᴇ ᴇᴠᴇɴ ᴀ ᴄᴏ-ᴏᴡɴᴇʀ!!**\n\n**ᴛᴜᴛᴏʀɪᴀʟ:**\nhttps://streamable.com/u88d7u"
       },
       {
         name: "ᴛɪᴋᴛᴏᴋ ɴᴏᴛ ʟɪᴠᴇ",
@@ -1119,7 +1142,7 @@ client.on("messageCreate", async (message) => {
         "<:emoji_14:1508646444607864872> **ᴄᴏᴏᴋɪᴇ ᴄʟᴇᴀɴᴇʀ**\n" +
         "> ᴄʟᴇᴀɴ & ꜱᴛʀɪᴘ ᴄᴏᴏᴋɪᴇꜱ ɪɴ ᴏɴᴇ ᴄʟɪᴄᴋ.\n\n" +
         "<:emoji_14:1508646444607864872> **ʜʏᴘᴇʀʟɪɴᴋ ꜱᴇɴᴅᴇʀ**\n" +
-        "> ꜱᴇɴᴅ ʜɪᴅᴅᴇɴ / ᴍᴀꜱᴋᴇᴅ ʟɪɴᴋꜱ ᴛʜᴀᴛ ʙʏᴘᴀꜱꜱ ᴅɪꜱᴄᴏʀᴅ ꜰʟᴀɢꜱ.\n\n" +
+        "> ꜱᴇɴᴅ ʜɪᴅᴅᴇɴ / ᴍᴀꜱᴋᴇᴅ ʟɪɴᴋꜱ ᴛʜᴀᴛ ʙʏᴘᴀꜱ��� ᴅɪꜱᴄᴏʀᴅ ꜰʟᴀɢꜱ.\n\n" +
         "──────────────────────────\n" +
         "*<a:emoji_13:1508646379751342130> ᴄʟɪᴄᴋ **Purchase** ʙᴇʟᴏᴡ ᴛᴏ ᴏᴘᴇɴ ᴀ ᴘʀɪᴠᴀᴛᴇ ᴄʜᴀɴɴᴇʟ ᴀɴᴅ ᴄᴏɴꜰɪʀᴍ ʏᴏᴜʀ ᴏʀᴅᴇʀ.*"
       )
@@ -2883,7 +2906,7 @@ client.on("messageCreate", async (message) => {
     const embed = new EmbedBuilder()
       .setDescription(
         "**─── <a:emoji_8:1506236357775720548> `ɪɴꜱᴀɴɪᴛʏ   | ʜʏᴘᴇʀʟɪɴᴋ` <a:emoji_8:1506236357775720548> ───\n\n" +
-        "<a:emoji_13:1508646379751342130> ᴜꜱᴇ ᴛʜɪꜱ ᴛᴏᴏʟ ᴛᴏ ɢᴇɴᴇʀᴀᴛᴇ ʜʏᴘᴇʀʟɪɴᴋꜱ ᴛʜᴀᴛ ʙʏᴘᴀꜱꜱ ᴅɪꜱᴄᴏʀᴅ ᴡᴀʀɴɪɴɢꜱ\n\n" +
+        "<a:emoji_13:1508646379751342130> ᴜꜱᴇ ᴛʜɪꜱ ᴛᴏᴏʟ ᴛᴏ ɢᴇɴᴇʀᴀᴛᴇ ʜʏᴘᴇʀʟɪɴᴋꜱ ᴛʜᴀᴛ ʙʏᴘᴀꜱ�� ᴅɪꜱᴄᴏʀᴅ ᴡᴀʀɴɪɴɢꜱ\n\n" +
         "<:emoji_14:1508646444607864872> ʙᴇꜱᴛ ʜʏᴘᴇʀʟɪɴᴋ ᴏꜰ ᴀʟʟ ᴛɪᴍᴇ**"
       )
       .setImage("https://image2url.com/r2/default/gifs/1768488617981-bdc4c780-144f-4a40-8906-ddf01eadb705.gif")
@@ -3161,7 +3184,7 @@ To gain access to the rest of the channels of this server you will need to verif
         "<:emoji_14:1508646444607864872> **ᴡᴇʙʜᴏᴏᴋ ꜱᴇɴᴅᴇʀ** — ꜱᴇɴᴅ ᴄᴜꜱᴛᴏᴍ ᴡᴇʙʜᴏᴏᴋꜱ\n" +
         "<:emoji_14:1508646444607864872> **ᴄᴏᴏᴋɪᴇ ᴄʟᴇᴀɴᴇʀ** — ᴄʟᴇᴀɴ ᴄᴏᴏᴋɪᴇꜱ ɪɴ ᴏɴᴇ ᴄʟɪᴄᴋ\n" +
         "<:emoji_14:1508646444607864872> **ʜʏᴘᴇʀʟɪɴᴋ ꜱᴇɴᴅᴇʀ** — ᴍᴀꜱᴋᴇᴅ ʟɪɴᴋꜱ ᴛʜᴀᴛ ʙʏᴘᴀꜱꜱ ꜰʟᴀɢꜱ\n\n" +
-        "*ᴄʟɪᴄᴋ **Purchase** ᴛᴏ ᴏᴘᴇɴ ᴀ ᴘʀɪᴠᴀᴛᴇ ᴄʜᴀɴɴᴇʟ ᴀɴᴅ ᴘʟᴀᴄᴇ ʏᴏᴜʀ ᴏʀᴅᴇʀ.*"
+        "*ᴄʟɪᴄᴋ **Purchase** ᴛ��� ᴏᴘᴇɴ ᴀ ᴘʀɪᴠᴀᴛᴇ ᴄʜᴀɴɴᴇʟ ᴀɴᴅ ᴘʟᴀᴄᴇ ʏᴏᴜʀ ᴏʀᴅᴇʀ.*"
       )
       .setColor("#2f3136");
     await interaction.reply({ embeds: [listEmbed], ephemeral: true });

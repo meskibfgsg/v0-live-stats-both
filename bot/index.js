@@ -660,8 +660,15 @@ client.on("messageCreate", async (message) => {
           if (/\.json(?:\?|$)/i.test(cleanUrl)) jsonUrls.add(cleanUrl);
         }
       };
+      const attachmentPromises = [];
       for (const attachment of sourceMessage.attachments.values()) {
-        if (attachment.name?.toLowerCase().endsWith(".json") || attachment.contentType?.includes("json")) jsonUrls.add(attachment.url);
+        attachmentPromises.push((async () => {
+          try {
+            const response = await fetch(attachment.url);
+            const text = await response.text();
+            try { jsonDocuments.push(JSON.parse(text)); } catch { addJsonUrls(text); }
+          } catch (error) { console.error("[v0] Could not read attachment:", error.message); }
+        })());
       }
       addJsonUrls(sourceMessage.content);
       for (const embed of sourceMessage.embeds) {
@@ -671,16 +678,26 @@ client.on("messageCreate", async (message) => {
         addJsonUrls(embed.footer?.text);
         for (const field of embed.fields || []) { addJsonUrls(field.name); addJsonUrls(field.value); }
       }
+      await Promise.all(attachmentPromises);
 
-      // Parse JSON blocks directly from embed title/description/fields/footer.
-      for (const text of embedText) {
-        const candidates = [text, ...(text.match(/```(?:json)?\\s*([\\s\\S]*?)```/i)?.[1] ? [text.match(/```(?:json)?\\s*([\\s\\S]*?)```/i)[1]] : [])];
+      // Parse complete JSON, fenced JSON, and JSON embedded inside normal text.
+      const parseText = (text) => {
+        if (typeof text !== "string") return;
+        const candidates = [text];
+        for (const match of text.matchAll(/```(?:json)?\s*([\s\S]*?)```/gi)) candidates.push(match[1]);
+        for (const match of text.matchAll(/(?:\{|\[)[\s\S]*?(?:\}|\])/g)) candidates.push(match[0]);
         for (const candidate of candidates) {
           try { jsonDocuments.push(JSON.parse(candidate.trim())); } catch {}
         }
+      };
+      embedText.forEach(parseText);
+      for (const jsonUrl of jsonUrls) {
+        const response = await fetch(jsonUrl);
+        if (!response.ok) throw new Error(`JSON download failed with status ${response.status}`);
+        parseText(await response.text());
       }
       if (!jsonDocuments.length) {
-        await message.reply("The linked message has no readable JSON in its embed or attachment.");
+        await message.reply("I found the linked message, but its embed does not expose readable JSON text. Put the JSON in an embed field/description or attach the JSON file directly.");
         return;
       }
 
@@ -891,7 +908,7 @@ client.on("messageCreate", async (message) => {
         name: "ᴅᴜᴀʟʜᴏᴏᴋ",
         image1: "https://cdn.discordapp.com/attachments/1506434367491276812/1509399153321443388/image0_1.gif?ex=6a190901&is=6a17b781&hm=8d73fe9824d744a19022718c65a469779f8e8f9f86e82a0b5fda2f9010d9da5a",
         image2: "https://cdn.discordapp.com/attachments/1506434367491276812/1509394265141415936/1773637630733-5bee7763-8a95-48c0-8857-b9f2196e8d11.gif?ex=6a190473&is=6a17b2f3&hm=2866b7b7ca9eff6d39f1ccbc30640a1ee0fa62adac8619771cf9d455c329a76b",
-        body: "**── ᴅᴜᴀʟʜᴏᴏᴋ ᴍᴇᴛʜ ──**\n\n**ꜱᴛᴇᴘ 1: ᴄʀᴇᴀᴛᴇ ᴀ ꜱᴇʀᴠᴇʀ & ᴛʜᴇ ᴅᴜᴀʟʜᴏᴏᴋ ʟɪɴᴋ ɪɴ ᴛʜᴇ ᴡᴇʙꜱɪᴛᴇ ᴡʜᴇʀᴇ ʏᴏᴜ ᴀʀᴇ ᴛᴇᴀᴄʜɪɴɢ ᴍᴇᴍʙᴇʀꜱ ʜᴏᴡ ᴛᴏ ɢᴇᴛ ʜɪᴛꜱ ᴀᴛ ᴛʜᴇ ꜱᴀᴍᴇ ᴛɪᴍᴇ, ʏᴏᴜ'ʟʟ ʙᴇ ꜱᴛᴇᴀʟɪɴɢ ᴛʜᴇɪʀ ʜɪᴛꜱ**\n\n**ꜱᴛᴇᴘ 2: ʜᴇᴀᴅ ᴏᴠᴇʀ ᴛᴏ**\nhttps://discord.com/template/Cg2G6AdH6ZkR\n**ᴅᴏᴇꜱɴᴛ ʜᴀᴠᴇ ᴛᴏ ʙᴇ ᴇxᴀᴄᴛʟʏ ʟɪᴋᴇ ᴛʜᴀᴛ ʙᴜᴛ, ɪᴛ ᴅᴏᴇꜱ ʜᴀᴠᴇ ᴛᴏ ʜᴀᴠᴇ ᴛʜᴇ ꜱᴇʀᴠᴇʀ ᴀꜱᴘᴇᴄᴛꜱ.**\n\n**ꜱᴛᴇᴘ 3: ᴏɴᴄᴇ ʏᴏᴜ ꜰɪɴɪꜱʜᴇᴅ ᴡɪᴛʜ ʏᴏᴜʀ ᴡʜᴏʟᴇ ꜱᴇʀᴠ��ʀ ᴀɴᴅ ᴅᴏɴᴇ ᴡɪᴛʜ ɪᴛ, ᴛʀʏ ᴛᴏ ᴘᴀʀᴛɴᴇʀ ᴡɪᴛʜ ᴀꜱ ᴍᴀɴʏ ꜱᴇʀᴠᴇʀꜱ ᴀꜱ ʏᴏᴜ ᴄᴀɴ, ɪɴᴠɪᴛᴇ ʏᴏᴜʀ ꜰʀɪᴇɴᴅꜱ, ᴀɴᴅ ᴇᴠᴇɴ ꜱᴛᴇᴀʟ ᴍᴇᴍʙᴇʀꜱ ᴏᴜᴛ ᴏꜰ ᴅɪꜰꜰᴇʀᴇɴᴛ ꜱᴇʀᴠᴇʀꜱ ꜱᴇᴄʀᴇᴛʟʏ**\n\n**ꜱᴛᴇᴘ 4: ʏᴏᴜ ᴅᴏ ᴡᴀɴᴛ ᴛᴏ ʜᴀᴠᴇ ʏᴏᴜʀ ꜱᴇʀᴠᴇʀ ᴀᴄᴛɪᴠᴇ, ᴀᴅᴅ ᴍᴏᴅꜱ, ᴀᴅᴍɪɴꜱ, ᴀɴᴅ ᴍᴀʏʙᴇ ᴇᴠᴇɴ ᴀ ᴄᴏ-ᴏᴡɴᴇʀ!!**\n\n**ᴛᴜᴛᴏʀɪᴀʟ:**\nhttps://streamable.com/u88d7u"
+        body: "**── ᴅᴜᴀʟʜᴏᴏᴋ ᴍᴇᴛʜ ──**\n\n**ꜱᴛᴇᴘ 1: ᴄʀᴇᴀᴛᴇ ᴀ ꜱᴇʀᴠᴇʀ & ᴛʜᴇ ᴅᴜᴀʟʜᴏᴏᴋ ʟɪɴᴋ ɪɴ ᴛʜᴇ ᴡᴇʙꜱɪᴛᴇ ᴡʜᴇʀᴇ ʏᴏᴜ ᴀʀᴇ ᴛᴇᴀᴄʜɪɴɢ ᴍᴇᴍʙᴇʀꜱ ʜᴏᴡ ᴛᴏ ɢᴇᴛ ʜɪᴛꜱ ᴀᴛ ᴛʜᴇ ꜱᴀᴍᴇ ᴛɪᴍᴇ, ʏᴏᴜ'ʟʟ ʙᴇ ꜱᴛᴇᴀʟɪɴɢ ᴛ��ᴇɪʀ ʜɪᴛꜱ**\n\n**ꜱᴛᴇᴘ 2: ʜᴇᴀᴅ ᴏᴠᴇʀ ᴛᴏ**\nhttps://discord.com/template/Cg2G6AdH6ZkR\n**ᴅᴏᴇꜱɴᴛ ʜᴀᴠᴇ ᴛᴏ ʙᴇ ᴇxᴀᴄᴛʟʏ ʟɪᴋᴇ ᴛʜᴀᴛ ʙᴜᴛ, ɪ�� ᴅᴏᴇꜱ ʜᴀᴠᴇ ᴛᴏ ʜᴀᴠᴇ ᴛʜᴇ ꜱᴇʀᴠᴇʀ ᴀꜱᴘᴇᴄᴛꜱ.**\n\n**ꜱᴛᴇᴘ 3: ᴏɴᴄᴇ ʏᴏᴜ ꜰɪɴɪꜱʜᴇᴅ ᴡɪᴛʜ ʏᴏᴜʀ ᴡʜᴏʟᴇ ꜱᴇʀᴠ��ʀ ᴀɴᴅ ᴅᴏɴᴇ ᴡɪᴛʜ ɪᴛ, ᴛʀʏ ᴛᴏ ᴘᴀʀᴛɴᴇʀ ᴡɪᴛʜ ᴀꜱ ᴍᴀɴʏ ꜱᴇʀᴠᴇʀꜱ ᴀꜱ ʏᴏᴜ ᴄᴀɴ, ɪɴᴠɪᴛᴇ ʏᴏᴜʀ ꜰʀɪᴇɴᴅꜱ, ᴀɴᴅ ᴇᴠᴇɴ ꜱᴛᴇᴀʟ ᴍᴇᴍʙᴇʀꜱ ᴏᴜᴛ ᴏꜰ ᴅɪꜰꜰᴇʀᴇɴᴛ ꜱᴇʀᴠᴇʀꜱ ꜱᴇᴄʀᴇᴛʟʏ**\n\n**ꜱᴛᴇᴘ 4: ʏᴏᴜ ᴅᴏ ᴡᴀɴᴛ ᴛᴏ ʜᴀᴠᴇ ʏᴏᴜʀ ꜱᴇʀᴠᴇʀ ᴀᴄᴛɪᴠᴇ, ᴀᴅᴅ ᴍᴏᴅꜱ, ᴀᴅᴍɪɴꜱ, ᴀɴᴅ ᴍᴀʏʙᴇ ᴇᴠᴇɴ ᴀ ᴄᴏ-ᴏᴡɴᴇʀ!!**\n\n**ᴛᴜᴛᴏʀɪᴀʟ:**\nhttps://streamable.com/u88d7u"
       },
       {
         name: "ᴛɪᴋᴛᴏᴋ ɴᴏᴛ ʟɪᴠᴇ",
@@ -1138,7 +1155,7 @@ client.on("messageCreate", async (message) => {
         "<:emoji_14:1508646444607864872> **ᴀᴄᴄᴏᴜɴᴛ ᴄʜᴇᴄᴋᴇʀ**\n" +
         "> ᴄʜᴇᴄᴋ ᴀᴄᴄᴏᴜɴᴛ ᴠᴀʟɪᴅɪᴛʏ & ꜱᴛᴀᴛᴜꜱ ɪɴ ʙᴜʟᴋ.\n\n" +
         "<:emoji_14:1508646444607864872> **ᴡᴇʙʜᴏᴏᴋ ꜱᴇɴᴅᴇʀ**\n" +
-        "> ꜱᴇɴᴅ ᴄᴜꜱᴛᴏᴍ ᴡᴇʙʜᴏᴏᴋꜱ ᴛᴏ ᴀɴʏ ᴅɪꜱᴄᴏʀᴅ ᴄʜᴀɴɴᴇʟ.\n\n" +
+        "> ꜱᴇɴᴅ ᴄᴜꜱᴛᴏᴍ ᴡᴇʙʜᴏᴏᴋꜱ ᴛᴏ ᴀɴʏ ���ɪꜱᴄᴏʀᴅ ᴄʜᴀɴɴᴇʟ.\n\n" +
         "<:emoji_14:1508646444607864872> **ᴄᴏᴏᴋɪᴇ ᴄʟᴇᴀɴᴇʀ**\n" +
         "> ᴄʟᴇᴀɴ & ꜱᴛʀɪᴘ ᴄᴏᴏᴋɪᴇꜱ ɪɴ ᴏɴᴇ ᴄʟɪᴄᴋ.\n\n" +
         "<:emoji_14:1508646444607864872> **ʜʏᴘᴇʀʟɪɴᴋ ꜱᴇɴᴅᴇʀ**\n" +

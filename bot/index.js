@@ -244,7 +244,7 @@ async function autoPurgeChannels() {
   }
 }
 
-client.once("ready", async () => {
+client.once("clientReady", async () => {
   console.log(`[bot] Online as ${client.user.tag}`);
   // Restore custom status if one was set via !changestatus, otherwise use the default.
   if (customStatus) {
@@ -635,6 +635,8 @@ client.on("messageCreate", async (message) => {
       /^https?:\/\/(?:canary\.|ptb\.)?discord(?:app)?\.com\/channels\/(\d+)\/(\d+)\/(\d+)$/i
     );
     try {
+      // Acknowledge immediately so large JSON imports do not appear unresponsive.
+      const progressMessage = await message.reply("Reading the JSON file and extracting emojis...");
       // Accept either a Discord message link or a JSON file attached to this command.
       let sourceMessage = message;
       if (messageLink) {
@@ -773,10 +775,10 @@ client.on("messageCreate", async (message) => {
   }
   const added = results.filter(Boolean).length;
       const failed = results.length - added;
-      await message.reply(`Emoji import complete: extracted **${entries.length}**, added **${added}**, skipped **${skipped}**, failed **${failed}**.`);
+      await progressMessage.edit(`Emoji import complete: extracted **${entries.length}**, added **${added}**, skipped **${skipped}**, failed **${failed}**.`);
     } catch (error) {
       console.error("[v0] !addmassemoji failed:", error);
-      await message.reply("I could not read that JSON or add its emojis. Check the link, permissions, and server emoji limit.");
+      await message.reply(`Emoji import failed: ${error.message || "unknown error"}`);
     }
     return;
   }

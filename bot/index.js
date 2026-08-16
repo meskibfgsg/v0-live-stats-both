@@ -752,28 +752,26 @@ client.on("messageCreate", async (message) => {
       });
       const skipped = entries.length - toAdd.length;
 
-      const results = [];
-      for (const entry of toAdd) {
-        let result = null;
-        for (let attempt = 0; attempt < 3 && !result; attempt++) {
-          try {
-            const imageResponse = await fetch(entry.url);
-            if (!imageResponse.ok) throw new Error(`image returned HTTP ${imageResponse.status}`);
-            const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
-            result = await message.guild.emojis.create({
-              attachment: imageBuffer,
-              name: entry.name,
-              reason: `Bulk emoji import by ${message.author.tag}`,
-            });
-          } catch (error) {
-            if (attempt === 2) console.error(`[v0] Failed to add emoji ${entry.name}:`, error.message);
-            else await new Promise((resolve) => setTimeout(resolve, 2000 * (attempt + 1)));
-          }
-        }
-        results.push(result);
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-      }
-      const added = results.filter(Boolean).length;
+// Discord rate-limits emoji creation, so retry each upload instead of firing
+  // every request at once and losing valid emojis to 429 responses.
+  const results = [];
+  for (const entry of toAdd) {
+  let result = null;
+  for (let attempt = 0; attempt < 4 && !result; attempt++) {
+  try {
+  const response = await fetch(entry.url);
+  if (!response.ok) throw new Error(`image download returned HTTP ${response.status}`);
+  const image = Buffer.from(await response.arrayBuffer());
+  result = await message.guild.emojis.create({ attachment: image, name: entry.name, reason: `Bulk emoji import by ${message.author.tag}` });
+  } catch (error) {
+  if (attempt === 3) console.error(`[v0] Failed to add emoji ${entry.name}:`, error.message);
+  else await new Promise((resolve) => setTimeout(resolve, 1500 * (attempt + 1)));
+  }
+  }
+  results.push(result);
+  await new Promise((resolve) => setTimeout(resolve, 750));
+  }
+  const added = results.filter(Boolean).length;
       const failed = results.length - added;
       await message.reply(`Emoji import complete: extracted **${entries.length}**, added **${added}**, skipped **${skipped}**, failed **${failed}**.`);
     } catch (error) {

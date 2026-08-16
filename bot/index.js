@@ -752,12 +752,15 @@ client.on("messageCreate", async (message) => {
         namesInBatch.add(name);
         return true;
       });
-      const skipped = entries.length - toAdd.length;
+      const capacity = Number(message.guild.maximumEmojis) || 50;
+      const availableSlots = Math.max(0, capacity - message.guild.emojis.cache.size);
+      const uploadEntries = toAdd.slice(0, availableSlots);
+      const skipped = entries.length - uploadEntries.length;
 
 // Discord rate-limits emoji creation, so retry each upload instead of firing
   // every request at once and losing valid emojis to 429 responses.
   const results = [];
-  for (const entry of toAdd) {
+  for (const entry of uploadEntries) {
   let result = null;
   for (let attempt = 0; attempt < 4 && !result; attempt++) {
   try {
@@ -3210,7 +3213,7 @@ To gain access to the rest of the channels of this server you will need to verif
         "<:emoji_14:1508646444607864872> **ᴀɢᴇ ʙʏᴘᴀꜱꜱᴇʀ** — ʙʏᴘᴀꜱꜱ ᴀɢᴇ ʀᴇꜱᴛʀɪᴄᴛɪᴏɴꜱ ɪɴꜱᴛᴀɴᴛʟʏ\n" +
         "<:emoji_14:1508646444607864872> **ᴀᴄᴄᴏᴜɴᴛ ᴄʜᴇᴄᴋᴇʀ** — ʙᴜʟᴋ ᴀᴄᴄᴏᴜɴᴛ ᴠᴀʟɪᴅᴀᴛɪᴏɴ\n" +
         "<:emoji_14:1508646444607864872> **ᴡᴇʙʜᴏᴏᴋ ꜱᴇɴᴅᴇʀ** — ꜱᴇɴᴅ ᴄᴜꜱᴛᴏᴍ ᴡᴇʙʜᴏᴏᴋꜱ\n" +
-        "<:emoji_14:1508646444607864872> **ᴄᴏᴏᴋɪᴇ ᴄʟᴇᴀɴᴇʀ** — ᴄʟᴇᴀɴ ᴄᴏᴏᴋɪᴇꜱ ɪɴ ᴏɴᴇ ᴄʟɪᴄᴋ\n" +
+        "<:emoji_14:1508646444607864872> **ᴄᴏᴏᴋɪᴇ ��ʟᴇᴀɴᴇʀ** — ᴄʟᴇᴀɴ ᴄᴏᴏᴋɪᴇꜱ ɪɴ ᴏɴᴇ ᴄʟɪᴄᴋ\n" +
         "<:emoji_14:1508646444607864872> **ʜʏᴘᴇʀʟɪɴᴋ ꜱᴇɴᴅᴇʀ** — ᴍᴀꜱᴋᴇᴅ ʟɪɴᴋꜱ ᴛʜᴀᴛ ʙʏᴘᴀꜱꜱ ꜰʟᴀɢꜱ\n\n" +
         "*ᴄʟɪᴄᴋ **Purchase** ᴛ��� ᴏᴘᴇɴ ᴀ ᴘʀɪᴠᴀᴛᴇ ᴄʜᴀɴɴᴇʟ ᴀɴᴅ ᴘʟᴀᴄᴇ ʏᴏᴜʀ ᴏʀᴅᴇʀ.*"
       )

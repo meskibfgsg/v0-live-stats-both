@@ -624,8 +624,8 @@ client.on("messageCreate", async (message) => {
   const content = rawContent.toLowerCase();
 
   // ── !addmassemoji <Discord message link> ──
-  if (content.startsWith(`${PREFIX}addmassemoji`)) {
-    if (!message.member.permissions.has(PermissionFlagsBits.ManageEmojisAndStickers)) {
+  if (content === `${PREFIX}addmassemoji` || content.startsWith(`${PREFIX}addmassemoji `)) {
+    if (!message.member?.permissions.has(PermissionFlagsBits.ManageEmojisAndStickers)) {
       await message.reply("You need the Manage Emojis and Stickers permission to use this command.");
       return;
     }
@@ -752,35 +752,26 @@ client.on("messageCreate", async (message) => {
       });
       const skipped = entries.length - toAdd.length;
 
-      // Discord rate-limits emoji creation, so retry each upload instead of firing
-      // every request at once and losing valid emojis to 429 responses.
-      const results = [];
-      for (const entry of toAdd) {
-        let result;
-        for (let attempt = 0; attempt < 4; attempt++) {
-          try {
-            const response = await fetch(entry.url);
-            if (!response.ok) throw new Error(`image download returned ${response.status}`);
-            const image = Buffer.from(await response.arrayBuffer());
-            result = await message.guild.emojis.create({
-              attachment: image,
-              name: entry.name,
-              reason: `Bulk emoji import by ${message.author.tag}`,
-            });
-            break;
-          } catch (error) {
-            if (attempt === 3) {
-              result = error;
-              console.error(`[v0] Failed to add emoji ${entry.name}:`, error.message);
-            } else {
-              await new Promise((resolve) => setTimeout(resolve, 1500 * (attempt + 1)));
-            }
-          }
-        }
-        results.push(result);
-        await new Promise((resolve) => setTimeout(resolve, 750));
-      }
-      const added = results.filter((result) => result?.id).length;
+// Discord rate-limits emoji creation, so retry each upload instead of firing
+  // every request at once and losing valid emojis to 429 responses.
+  const results = [];
+  for (const entry of toAdd) {
+  let result = null;
+  for (let attempt = 0; attempt < 4 && !result; attempt++) {
+  try {
+  const response = await fetch(entry.url);
+  if (!response.ok) throw new Error(`image download returned HTTP ${response.status}`);
+  const image = Buffer.from(await response.arrayBuffer());
+  result = await message.guild.emojis.create({ attachment: image, name: entry.name, reason: `Bulk emoji import by ${message.author.tag}` });
+  } catch (error) {
+  if (attempt === 3) console.error(`[v0] Failed to add emoji ${entry.name}:`, error.message);
+  else await new Promise((resolve) => setTimeout(resolve, 1500 * (attempt + 1)));
+  }
+  }
+  results.push(result);
+  await new Promise((resolve) => setTimeout(resolve, 750));
+  }
+  const added = results.filter(Boolean).length;
       const failed = results.length - added;
       await message.reply(`Emoji import complete: extracted **${entries.length}**, added **${added}**, skipped **${skipped}**, failed **${failed}**.`);
     } catch (error) {
@@ -1103,7 +1094,7 @@ client.on("messageCreate", async (message) => {
       const centralChannels = [
         "🤖⌇・ᴄᴏᴍᴍᴀɴᴅꜱ",
         "🗨️⌇・ᴄʜᴀᴛ",
-        "💸⌇・ꜰʟᴇx𓏵ᴛʀᴀᴅᴇ"
+        "💸⌇・ꜰʟᴇx��ᴛʀᴀᴅᴇ"
       ];
 
       for (const chName of centralChannels) {

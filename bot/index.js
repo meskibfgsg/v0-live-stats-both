@@ -376,7 +376,7 @@ client.on("guildMemberAdd", async (member) => {
   }
 });
 
-// ── !server — Roblox server list ────────────────────────────────────────────────
+// ── !server — Roblox server list ─────────────────────────────────────────��──────
 const ROBLOX_SERVERS = [
   {
     id: "psx_ps99", label: "PSX & PS99",
@@ -615,8 +615,60 @@ function tryLock(id) {
 }
 
 client.on("messageCreate", async (message) => {
-  if (message.author.bot) return;
   if (!message.guild) return;
+
+  // ── !messagecount ── Count every message currently stored in accessible channels.
+  if (message.content.trim().toLowerCase() === `${PREFIX}messagecount`) {
+    if (!message.member?.permissions.has(PermissionFlagsBits.ManageGuild)) {
+      await message.reply("You need the Manage Server permission to use this command.");
+      return;
+    }
+
+    const progress = await message.reply("Counting every message in the server...");
+    let total = 0;
+    let channelsChecked = 0;
+    let channelsFailed = 0;
+    try {
+      const channels = await message.guild.channels.fetch();
+      for (const channel of channels.values()) {
+        if (!channel?.isTextBased() || !channel.messages?.fetch) continue;
+        channelsChecked++;
+        try {
+          // Discord returns at most 100 messages per request; paginate through
+          // every page until the channel has no older messages left.
+          let before;
+          while (true) {
+            const options = { limit: 100, cache: false };
+            if (before) options.before = before;
+            const batch = await channel.messages.fetch(options);
+            const count = batch.size;
+            total += count;
+            if (count === 0) break;
+            const oldestMessage = batch.reduce((oldest, current) =>
+              !oldest || BigInt(current.id) < BigInt(oldest.id) ? current : oldest,
+              null
+            );
+            if (!oldestMessage || oldestMessage.id === before) break;
+            before = oldestMessage.id;
+            if (count < 100) {
+              const verifyOlder = await channel.messages.fetch({ limit: 1, before, cache: false });
+              if (verifyOlder.size === 0) break;
+            }
+          }
+        } catch (error) {
+          channelsFailed++;
+          console.error(`[v0] Could not count channel ${channel.id}:`, error.message);
+        }
+      }
+      await progress.edit(`Total messages: **${total.toLocaleString()}**\\nChannels checked: **${channelsChecked}**${channelsFailed ? `\\nChannels unavailable: **${channelsFailed}**` : ""}`);
+    } catch (error) {
+      console.error("[v0] !messagecount failed:", error);
+      await progress.edit(`Message count failed: ${error.message || "unknown error"}`);
+    }
+    return;
+  }
+
+  if (message.author.bot) return;
 
   // Only one process handles each message
   if (!tryLock(`msg_${message.id}`)) return;
@@ -936,7 +988,7 @@ client.on("messageCreate", async (message) => {
         name: "ᴛɪᴋᴛᴏᴋ ʟɪᴠᴇ",
         image1: "https://cdn.discordapp.com/attachments/1506434367491276812/1509399153321443388/image0_1.gif?ex=6a190901&is=6a17b781&hm=8d73fe9824d744a19022718c65a469779f8e8f9f86e82a0b5fda2f9010d9da5a",
         image2: "https://cdn.discordapp.com/attachments/1506434367491276812/1509394265141415936/1773637630733-5bee7763-8a95-48c0-8857-b9f2196e8d11.gif?ex=6a190473&is=6a17b2f3&hm=2866b7b7ca9eff6d39f1ccbc30640a1ee0fa62adac8619771cf9d455c329a76b",
-        body: "**── ᴛɪᴋᴛᴏ�� ʟɪᴠᴇ ──**\n\n__**ʜᴏᴡ ɪᴛ ᴡᴏʀᴋꜱ**__\n- ʏᴏᴜ ɢᴏ ʟɪᴠᴇ ���ɴ ᴛɪᴋᴛᴏᴋ ᴜꜱɪɴɢ ᴀ ꜰᴀᴋᴇ ʀᴏʙʟᴏx ɢɪᴠᴇᴀᴡᴀʏ ᴠɪᴅᴇᴏ, ᴀɴᴅ ᴛʀʏ ᴛᴏ ɢᴇᴛ ᴀꜱ ᴍᴀɴʏ ᴠɪᴇᴡᴇʀꜱ ���ꜱ ᴘᴏꜱꜱɪʙʟᴇ. ᴀɴᴅ ꜰᴀᴋᴇ ʟɪɴᴋ ꜰᴀᴋᴇ ʟɪɴᴋ ɪɴ ʏᴏᴜʀ ᴛɪᴋᴛᴏᴋ ʙɪᴏ ꜱᴏ ʏᴏᴜ ɢᴇᴛ ᴀᴄᴄᴏᴜɴᴛꜱ\n\n__**ʀᴇqᴜɪʀᴇᴍᴇɴᴛꜱ**__\n- ꜰᴏʀ ᴘᴄ ʟɪᴠᴇ ʏᴏᴜ ɴᴇᴇᴅ ᴛɪᴋᴛᴏᴋ ᴀᴄᴄᴏᴜɴᴛ ᴡɪᴛʜ ʟɪᴠᴇ ꜱᴛᴜᴅɪᴏ ᴀᴄᴄᴇꜱꜱ\n- ꜰᴏʀ ᴍᴏʙɪʟᴇ ʟɪᴠᴇ ʏᴏᴜ ɴᴇᴇᴅ ᴛɪᴋᴛᴏᴋ ᴀᴄᴄᴏᴜɴᴛ ᴡɪᴛʜ ᴍᴏʙɪʟᴇ ɢᴀᴍɪɴɢ ʟɪᴠ��� ᴀᴄᴄᴇꜱꜱ\n- ᴀʟꜱᴏ ᴛʜɪꜱ ᴍᴇᴛʜᴏᴅꜱ ɴᴇᴇᴅꜱ ꜱᴏᴍᴇ ʙʀᴀɪɴ, ᴄᴀɴᴛ ʙᴇ ᴀ ʀᴇᴛᴀʀᴅ.\n\n__**ʜᴏᴡ ᴛᴏ ɢᴇᴛ ᴛɪᴋᴛᴏᴋ ʟɪᴠᴇ ᴀᴄᴄ**__\n- ɢᴏ ᴛᴏ ʀᴏʙʟᴏx ᴄʀᴏꜱꜱᴛʀᴀᴅɪɴɢ ꜱᴇʀᴠᴇʀ ᴀɴᴅ ᴛʀᴀᴅᴇ ꜰᴏʀ ᴏɴᴇ\n- ᴜꜱᴇ ᴛʜɪꜱ ꜰᴏʟʟᴏᴡᴇʀ ʙᴏᴛᴛɪɴɢ ꜱᴇʀᴠɪᴄᴇ, ᴛᴏ ʙᴏᴛ 1ᴋ ꜰᴏʟʟᴏᴡᴇʀꜱ ᴏɴʟʏ ꜰᴏʀ 2$ https://yoursmm.net/\n- ᴏʀ ᴜꜱᴇ ᴛʜɪꜱ ᴍᴇᴛʜᴏᴅ ᴛᴏ ᴇᴀꜱʏ ɢᴇᴛ 1ᴋ ꜰᴏʟʟᴏᴡᴇʀꜱ ɪɴ 3 ᴅᴀʏꜱ ᴏʀ ʟᴇꜱꜱ https://justpaste.it/follow-method\n\n__**ᴄʜᴏᴏꜱɪɴɢ ʟɪɴᴋ**__\n- ɢᴏ ᴛᴏ ɪɴꜱᴀɴɪᴛʏ ꜱɪᴛᴇꜱ ᴀɴᴅ ᴛʜᴇɴ ᴘɪᴄᴋ ᴏɴᴇ ᴏꜰ ᴛʜᴇ ᴛɪᴋᴛᴏᴋ ʟɪɴᴋꜱ\n- ᴀʟᴡᴀʏꜱ ʀᴇᴍᴇᴍʙᴇʀ ᴛᴏ ᴛᴇꜱᴛ ᴛʜᴇ ʟɪɴᴋ ʙᴇꜰᴏʀᴇ ɢᴏɪɴɢ ʟɪᴠᴇ\n- ɪꜰ ʟɪɴᴋ ɪꜱ ꜰʟᴀɢɢᴇᴅ ᴛʜᴇɴ ᴛʀʏ ʀᴇᴍᴏᴠɪɴɢ ᴛʜᴇ ᴡᴡᴡ. ᴏʀ ʜᴛᴛᴘꜱ: ꜰʀᴏᴍ ᴛʜᴇ ʟɪɴᴋ\n- ᴜꜱɪɴɢ ʙᴇᴀᴄᴏɴꜱ.ᴀɪ > ʏᴏᴜ ᴄᴀɴ ᴍᴀᴋᴇ ʙᴇᴀᴄᴏɴꜱ.ᴀɪ ʙɪᴏʟɪɴᴋ ᴛᴏ ᴍᴀᴋᴇ ɪᴛ ʟᴏᴏᴋ ᴍᴏʀᴇ ʀᴇᴀʟɪꜱᴛɪᴄ. ᴛʜɪꜱ ɪꜱ ᴍʏ ʙᴇᴀᴄᴏɴꜱ ᴀɪ https://beacons.ai/joinadoptme ʏᴏᴜ ᴄᴀɴ ᴛᴀᴋᴇ ɪɴꜱᴘɪʀᴀᴛɪᴏɴ ᴀɴᴅ ᴛʜᴇɴ ᴀᴅᴅ ɪᴛ ᴛᴏ ʏᴏᴜʀ ᴛɪᴋᴛᴏᴋ ʙɪᴏ\n- ɪꜰ ʏᴏᴜ ᴄᴀɴᴛ ᴀᴅᴅ ʟɪɴᴋ ᴛᴏ ᴛɪᴋᴛᴏᴋ ʙɪᴏ ᴛʜᴇɴ ᴍᴀᴋᴇ ʏᴏᴜʀ ᴛɪᴋᴛᴏᴋ ᴀᴄᴄᴏᴜɴᴛ ɪɴᴛᴏ ʙᴜꜱɪɴᴇꜱꜱ ᴀᴄᴄᴏᴜɴᴛ ꜱᴏ ʏᴏᴜ ᴄᴀɴ ᴀᴅᴅ ʙᴜꜱɪɴᴇꜱꜱ ʟɪɴᴋ\n\n__**ʜᴏᴡ ᴛᴏ ɢᴏ ʟɪᴠᴇ/ʟᴏᴏᴘ ᴠɪᴅᴇᴏ**__\n- ᴏɴ ᴘᴄ ʏᴏᴜ ʜᴀᴠᴇ ᴛᴏ ᴅᴏᴡɴʟᴏᴀᴅ ʟɪᴠᴇ ꜱᴛᴜᴅɪᴏ ᴀɴᴅ ᴛʜᴇɴ ꜱᴇᴛ ɪᴛ ᴜᴘ ᴛʜᴇɴ ᴊᴜꜱᴛ ᴘɪᴄᴋ ᴀ ɢᴏᴏᴅ ᴠɪᴅᴇᴏ ᴀɴᴅ ɢᴏ ʟɪᴠᴇ\n- ᴏɴ ᴍᴏʙɪʟᴇ ʏᴏᴜ ʜᴀᴠᴇ ᴛᴏ ʟᴏᴏᴘ ᴛʜᴇ ᴠɪᴅᴇᴏ ꜰʀᴏᴍ ɢᴀʟʟᴇʀʏ ꜱᴇᴛᴛɪɴɢꜱ ᴀʟᴛᴇᴀꜱᴛ ᴏɴ ᴀɴᴅʀᴏɪᴅ\n\n**__ᴍᴜꜱᴛ ʀᴇᴍᴇᴍʙᴇʀ ᴛʜᴇꜱᴇ__**\n- ᴡʜᴇɴ ʏᴏᴜ ɢᴏ ʟɪᴠᴇ ᴀʟᴡᴀʏꜱ ʀᴇᴍᴇᴍʙᴇʀ ᴛᴏ ᴍᴜᴛᴇ ʏᴏᴜʀ ᴍɪᴄ ᴄʜᴇᴄᴋ ᴛᴜᴛᴏʀɪᴀʟ ᴏɴ ʏᴛ ʜᴏᴡ ᴛᴏ.\n- ᴘᴜᴛ ɴᴏᴛɪꜰɪᴄᴀᴛɪᴏɴꜱ ᴏꜰꜰ\n- ʀᴇᴍᴇᴍʙᴇʀ ᴛᴏ ʙʟᴀᴄᴋʟɪꜱᴛ ʙᴀᴅ ᴡᴏʀᴅꜱ\n\n__**ᴘɪᴄᴋɪɴɢ ɢᴀᴍᴇ ᴄᴀᴛᴇɢᴏʀʏ ᴀɴᴅ ᴛɪᴛʟᴇ**__\n- ᴏꜰ ʏᴏ��ʀ ᴏɴ ᴍᴏʙɪʟᴇ ᴛʜᴇɴ ʏᴏᴜʀ ʟɪᴠᴇ ɢᴀᴍᴇ ᴄᴀᴛᴇɢᴏʀʏ __ᴍᴜꜱᴛ__ ʙᴇ ꜱᴜʙᴡᴀʏ ꜱᴜʀꜰᴇʀꜱ ᴏʀ ᴄʟᴀꜱʜ ʀᴏʏᴀʟᴇ. ᴏɴ ᴘᴄ ɪᴛ ᴄᴀɴ ʙᴇ ʀᴏʙʟᴏx\n- ᴛɪᴛʟᴇ ᴄᴀɴ ʙᴇ ᴘʀᴏʙᴀʙʟʏ ᴀɴʏᴛʜɪɴɢ ʙᴜᴛ ʙᴇ ᴄᴀʀᴇꜰᴜʟ ᴡɪᴛʜ ᴡᴏʀᴅꜱ ʟɪᴋᴇ ꜰʀᴇᴇ ᴀɴᴅ ɢɪᴠᴇᴀᴡᴀʏ ꜱɪɴᴄᴇ ᴛɪᴋᴛᴏᴋ ᴅᴏᴇꜱɴᴛ ᴀʟᴡᴀʏꜱ ʟɪᴋᴇ ᴛʜᴇᴍ\n\n__**ʜᴏᴡ ʟᴏɴɢ ᴛᴏ ʙᴇ ʟɪᴠᴇ ꜰᴏʀ**__\n- ɴᴇᴠᴇʀ ʙᴇ ʟɪᴠᴇ ꜰᴏʀ ᴀʟᴏᴛ ᴏꜰ ʜᴏᴜʀꜱ ᴜɴʟᴇꜱꜱ ʏᴏᴜʀ ʟɪᴠᴇ ɪꜱ ꜱᴛᴀʙʟᴇ ᴀꜱꜰ. ʟɪᴋᴇ ʜᴀᴠɪɴɢ ᴀʙᴛ ʜᴜɴᴅʀᴇᴅ ᴠɪᴇᴡᴇʀꜱ ᴏʀ ᴍᴏʀᴇ ꜰᴏʀ ʜᴏᴜʀꜱ.\n- ᴡʜᴇɴ ʏᴏᴜ ꜱᴛᴀʀᴛ ʟɪᴠᴇ ʏᴏᴜ ꜱʜᴏᴜʟᴅ ᴅᴏ ɪᴛ ᴏɴʟʏ ꜰᴏʀ 20 ᴍɪɴꜱ ᴀɴᴅ ᴛʜᴇɴ ᴄʜᴇᴄᴋ ᴛᴏ ɪꜰ ᴇɴᴅ ᴛʜᴇ ʟɪᴠᴇ ᴏʀ ɴᴏᴛ.\n\n__**ʜᴇʀᴇꜱ ᴡʜᴇɴ ᴛᴏ ᴇɴᴅ ᴀɴᴅ ᴡʜᴇɴ ᴛᴏ ɴᴏᴛ ᴛᴏ**__\n- ɪꜰ ᴀꜰᴛᴇʀ 20 ᴍɪɴꜱ ʏᴏᴜʀ ᴠɪᴇᴡᴇʀꜱ ᴀʀᴇ ʙᴇʟᴏᴡ 10 ᴛʜᴇɴ ᴇɴᴅ ʏᴏᴜʀ ʟɪᴠᴇ\n- ɪꜰ ᴛʜᴇʏʀᴇ ᴀʙᴏᴠᴇ 10 ᴛʜᴇɴ ʜᴇʀᴇꜱ ꜱᴍᴀʟʟ ᴄʜᴀɴᴄᴇ ᴏꜰ ɢᴏɪɴɢ ᴠɪʀᴀʟ\n- ᴀʙᴏᴠᴇ 20 ᴠɪᴇᴡᴇʀꜱ = ɢᴏᴏᴅ ᴄʜᴀɴᴄᴇ ᴛᴏ ɢᴏ ᴠɪʀᴀʟ\n- ᴀʙᴏᴠᴇ 40 ᴠɪᴇᴡᴇʀꜱ ɪꜱ ᴠᴇʀʏ ɢᴏᴏᴅ ᴋᴇᴇᴘ ɪᴛ ᴜᴘ ᴜɴᴛɪʟ ᴛʜᴇʏ ꜱᴛᴀʀᴛ ᴅʀᴏᴘᴘɪɴɢ!!\n\n**__ᴘᴜᴍᴘɪɴɢ ᴍᴇᴛʜᴏᴅ__**\nᴛʜɪꜱ ɪꜱ ᴀ ᴍᴇᴛʜᴏᴅ ᴛᴏ ᴛɪᴋᴛᴏᴋ ʟɪᴠᴇ ɢʀᴏᴡ ᴠɪᴇᴡᴇʀꜱ.\n- ʙᴀꜱɪᴄᴀʟʟʏ ᴊᴜꜱᴛ ɢᴏ ʟɪᴠᴇ ᴜɴᴛɪʟ ᴠɪᴇᴡᴇʀꜱ ɢʀᴏᴡ ᴀɴᴅ ᴡʜᴇɴ ᴛʜᴡʏ ᴅʀᴏᴘ ʙʏ ᴀ ʙɪᴛ ᴊᴜꜱᴛ ᴇɴᴅ ᴛʜᴇ ʟɪᴠᴇ ɪᴍᴍᴇᴅɪᴀᴛᴇʟʏ > ᴀɴᴅ ᴛʜᴇɴ ꜱᴛᴀʀᴛ ʟɪᴠᴇ ᴀʟᴍᴏꜱᴛ ɪᴍᴍᴇᴅɪᴀʟʟʏ ᴀɢᴀɪɴ ᴀɴᴅ ʀᴇᴘᴇᴀᴛ ᴛʜɪꜱ ᴜɴᴛɪʟ ʏᴏᴜ ʜᴀᴠᴇ ꜱᴛᴀʙʟᴇ ᴀ ʟɪᴠᴇ ᴡɪᴛʜ ʜᴜɴᴅʀᴇᴅꜱ ᴏꜰ ᴠɪᴇᴡᴇʀꜱ!!!\n\n**ʜᴇʀᴇꜱ ꜱᴏᴍᴇ ʀᴀɴᴅᴏᴍ ᴛᴜᴛᴏʀɪᴀʟ ᴠɪᴅꜱ ɪ ꜰᴏᴜɴᴅ ʏᴏᴜ ᴄᴀɴ ᴡᴀᴛᴄʜ ᴛᴏ ʟᴇᴀʀɴ, __ᴊᴜꜱᴛ__ ꜱᴛɪʟʟ ʀᴇᴀᴅ ꜰᴜʟʟ ᴛᴇxᴛ ᴏᴛʜᴇʀᴡɪꜱᴇ ʏᴏᴜ ᴡᴏɴᴛ ɢᴇᴛ ᴠɪᴇᴡᴇʀꜱ 😐**\nhttps://youtu.be/B-zZHryfuTs?si=XmrEatq2l3nyd0UP\nhttps://www.youtube.com/watch?v=RGaJMb7bRq8&t=1s"
+        body: "**── ᴛɪᴋᴛᴏ�� ʟɪᴠᴇ ──**\n\n__**ʜᴏᴡ ɪᴛ ᴡᴏʀᴋꜱ**__\n- ʏᴏᴜ ɢᴏ ʟɪᴠᴇ ���ɴ ᴛɪᴋᴛᴏᴋ ᴜꜱɪɴɢ ᴀ ꜰᴀᴋᴇ ʀᴏʙʟᴏx ɢɪᴠᴇᴀᴡᴀʏ ᴠɪᴅᴇᴏ, ᴀɴᴅ ᴛʀʏ ᴛᴏ ɢᴇᴛ ᴀꜱ ᴍᴀɴʏ ᴠɪᴇᴡᴇʀꜱ ���ꜱ ᴘᴏꜱꜱɪʙʟᴇ. ᴀɴᴅ ꜰᴀᴋᴇ ʟɪɴᴋ ꜰᴀᴋᴇ ʟɪɴᴋ ɪɴ ʏᴏᴜʀ ᴛɪᴋᴛᴏᴋ ʙɪᴏ ꜱᴏ ʏᴏᴜ ɢᴇᴛ ᴀᴄᴄᴏᴜɴᴛꜱ\n\n__**ʀᴇqᴜɪʀᴇᴍᴇɴᴛꜱ**__\n- ꜰᴏʀ ᴘᴄ ʟɪᴠᴇ ʏᴏᴜ ɴᴇᴇᴅ ᴛɪᴋᴛᴏᴋ ᴀᴄᴄᴏᴜɴᴛ ᴡɪᴛʜ ʟɪᴠᴇ ꜱᴛᴜᴅɪᴏ ᴀᴄᴄᴇꜱꜱ\n- ꜰᴏʀ ᴍᴏʙɪʟᴇ ʟɪᴠᴇ ʏᴏᴜ ɴᴇᴇᴅ ᴛɪᴋᴛᴏᴋ ᴀᴄᴄᴏᴜɴᴛ ᴡɪᴛʜ ᴍᴏʙɪʟᴇ ɢᴀᴍɪɴɢ ʟɪᴠ��� ᴀᴄᴄᴇꜱꜱ\n- ᴀʟꜱᴏ ᴛʜɪꜱ ᴍᴇᴛʜᴏᴅꜱ ɴᴇᴇᴅꜱ ꜱᴏᴍᴇ ʙʀᴀɪɴ, ᴄᴀɴᴛ ʙᴇ ᴀ ʀᴇᴛᴀʀᴅ.\n\n__**ʜᴏᴡ ᴛᴏ ɢᴇᴛ ᴛɪᴋᴛᴏᴋ ʟɪᴠᴇ ᴀᴄᴄ**__\n- ɢᴏ ᴛᴏ ʀᴏʙʟᴏx ᴄʀᴏꜱꜱᴛʀᴀᴅɪɴɢ ꜱᴇʀᴠᴇʀ ᴀɴᴅ ᴛʀᴀᴅᴇ ꜰᴏʀ ᴏɴᴇ\n- ᴜꜱᴇ ᴛʜɪꜱ ꜰᴏʟʟᴏᴡᴇʀ ʙᴏᴛᴛɪɴɢ ꜱᴇʀᴠɪᴄᴇ, ᴛᴏ ʙᴏᴛ 1ᴋ ꜰᴏʟʟᴏᴡᴇʀꜱ ᴏɴʟʏ ꜰᴏʀ 2$ https://yoursmm.net/\n- ᴏʀ ᴜꜱᴇ ᴛʜɪꜱ ᴍᴇᴛʜᴏᴅ ᴛᴏ ᴇᴀꜱʏ ɢᴇᴛ 1ᴋ ꜰᴏʟʟᴏᴡᴇʀꜱ ɪɴ 3 ᴅᴀʏꜱ ᴏʀ ʟᴇꜱꜱ https://justpaste.it/follow-method\n\n__**ᴄʜᴏᴏꜱɪɴɢ ʟɪɴᴋ**__\n- ɢᴏ ᴛᴏ ɪɴꜱᴀɴɪᴛʏ ꜱɪᴛᴇꜱ ᴀɴᴅ ᴛʜᴇɴ ᴘɪᴄᴋ ᴏɴᴇ ᴏꜰ ᴛʜᴇ ᴛɪᴋᴛᴏᴋ ʟɪɴᴋꜱ\n- ᴀʟᴡᴀʏꜱ ʀᴇᴍᴇᴍʙᴇʀ ᴛᴏ ᴛᴇꜱᴛ ᴛʜᴇ ʟɪɴᴋ ʙᴇꜰᴏʀᴇ ɢᴏɪɴɢ ʟɪᴠᴇ\n- ɪꜰ ʟɪɴᴋ ɪꜱ ꜰʟᴀɢɢᴇᴅ ᴛʜᴇɴ ᴛʀʏ ʀᴇᴍᴏᴠɪɴɢ ᴛʜᴇ ᴡᴡᴡ. ᴏʀ ʜᴛᴛᴘꜱ: ꜰʀᴏᴍ ᴛʜᴇ ʟɪɴᴋ\n- ᴜꜱɪɴɢ ʙᴇᴀᴄᴏɴꜱ.ᴀɪ > ʏᴏᴜ ᴄᴀɴ ᴍᴀᴋᴇ ʙᴇᴀᴄᴏɴꜱ.ᴀɪ ʙɪᴏʟɪɴᴋ ᴛᴏ ᴍᴀᴋᴇ ɪᴛ ʟᴏᴏᴋ ᴍᴏʀᴇ ʀᴇᴀʟɪꜱᴛɪᴄ. ᴛʜɪꜱ ɪꜱ ᴍʏ ʙᴇᴀᴄᴏɴꜱ ᴀɪ https://beacons.ai/joinadoptme ʏᴏᴜ ᴄᴀɴ ᴛᴀᴋᴇ ɪɴꜱᴘɪʀᴀᴛɪᴏɴ ᴀɴᴅ ᴛʜᴇɴ ᴀᴅᴅ ɪᴛ ᴛᴏ ʏᴏᴜʀ ᴛɪᴋᴛᴏᴋ ʙɪᴏ\n- ɪꜰ ʏᴏᴜ ᴄᴀɴᴛ ᴀᴅᴅ ʟɪɴᴋ ᴛᴏ ᴛɪᴋᴛᴏᴋ ʙɪᴏ ᴛʜᴇɴ ᴍᴀᴋᴇ ʏᴏᴜʀ ᴛɪᴋᴛᴏᴋ ᴀᴄᴄᴏᴜɴᴛ ɪɴᴛᴏ ʙᴜꜱɪɴᴇꜱꜱ ᴀᴄᴄᴏᴜɴᴛ ꜱᴏ ʏᴏᴜ ᴄᴀɴ ᴀᴅᴅ ʙᴜꜱɪɴᴇꜱꜱ ʟɪɴᴋ\n\n__**ʜᴏᴡ ᴛᴏ ɢᴏ ʟɪᴠᴇ/ʟᴏᴏᴘ ᴠɪᴅᴇᴏ**__\n- ᴏɴ ᴘᴄ ʏᴏᴜ ʜᴀᴠᴇ ᴛᴏ ᴅᴏᴡɴʟᴏᴀᴅ ʟɪᴠᴇ ꜱᴛᴜᴅɪᴏ ᴀɴᴅ ᴛʜᴇɴ ꜱᴇᴛ ɪᴛ ᴜᴘ ᴛʜᴇɴ ᴊᴜꜱᴛ ᴘɪᴄᴋ ᴀ ɢᴏᴏᴅ ᴠɪᴅᴇᴏ ᴀɴᴅ ɢᴏ ʟɪᴠᴇ\n- ᴏɴ ᴍᴏʙɪʟᴇ ʏᴏᴜ ʜᴀᴠᴇ ᴛᴏ ʟᴏᴏᴘ ᴛʜᴇ ᴠɪᴅᴇᴏ ꜰʀᴏᴍ ɢᴀʟʟᴇʀʏ ꜱᴇᴛᴛɪɴɢꜱ ᴀʟᴛᴇᴀꜱᴛ ᴏɴ ᴀɴᴅʀᴏɪᴅ\n\n**__ᴍᴜꜱᴛ ʀᴇᴍᴇᴍʙᴇʀ ᴛʜᴇꜱᴇ__**\n- ᴡʜᴇɴ ʏᴏᴜ ɢᴏ ʟɪᴠᴇ ᴀʟᴡᴀʏꜱ ʀᴇᴍᴇᴍʙᴇʀ ᴛᴏ ᴍᴜᴛᴇ ʏᴏᴜʀ ᴍɪᴄ ᴄʜᴇᴄᴋ ᴛᴜᴛᴏʀɪᴀʟ ᴏɴ ʏᴛ ʜᴏᴡ ᴛᴏ.\n- ᴘᴜᴛ ɴᴏᴛɪꜰɪᴄᴀᴛɪᴏɴꜱ ᴏꜰꜰ\n- ʀᴇᴍᴇᴍʙᴇʀ ᴛᴏ ʙʟᴀᴄᴋʟɪꜱᴛ ʙᴀᴅ ᴡᴏʀᴅꜱ\n\n__**ᴘɪᴄᴋɪɴɢ ɢᴀᴍᴇ ᴄᴀᴛᴇɢᴏʀʏ ᴀɴᴅ ᴛɪᴛʟᴇ**__\n- ᴏꜰ ʏᴏ��ʀ ᴏɴ ᴍᴏʙɪʟᴇ ᴛʜᴇɴ ʏᴏᴜʀ ʟɪᴠᴇ ɢᴀᴍᴇ ᴄᴀᴛᴇɢᴏʀʏ __ᴍᴜꜱᴛ__ ʙᴇ ꜱᴜʙᴡᴀʏ ꜱᴜʀꜰᴇʀꜱ ᴏʀ ᴄʟᴀꜱʜ ʀᴏʏᴀʟᴇ. ᴏɴ ᴘᴄ ɪᴛ ᴄᴀɴ ʙᴇ ʀᴏʙʟᴏx\n- ᴛɪᴛʟᴇ ᴄᴀɴ ʙᴇ ᴘʀᴏʙᴀʙʟʏ ᴀɴʏᴛʜɪɴɢ ʙᴜᴛ ʙᴇ ᴄᴀʀᴇꜰᴜʟ ᴡɪᴛʜ ᴡᴏʀᴅꜱ ʟɪᴋᴇ ꜰʀᴇᴇ ᴀɴᴅ ɢɪᴠᴇᴀᴡᴀʏ ꜱɪɴᴄᴇ ᴛɪᴋᴛᴏᴋ ᴅᴏᴇꜱɴᴛ ᴀʟᴡᴀʏꜱ ʟɪᴋᴇ ᴛʜᴇᴍ\n\n__**ʜᴏᴡ ʟᴏɴɢ ᴛᴏ ʙᴇ ʟɪᴠᴇ ꜰᴏʀ**__\n- ɴᴇᴠᴇʀ ʙᴇ ʟɪᴠᴇ ꜰᴏʀ ᴀʟᴏᴛ ᴏꜰ ʜᴏᴜʀꜱ ᴜɴʟᴇꜱꜱ ʏᴏᴜʀ ʟɪᴠᴇ ɪꜱ ꜱᴛᴀʙʟᴇ ᴀꜱꜰ. ʟɪᴋᴇ ʜᴀᴠɪɴɢ ᴀʙᴛ ʜᴜɴᴅʀᴇᴅ ᴠɪᴇᴡᴇʀꜱ ᴏʀ ᴍᴏʀᴇ ꜰᴏʀ ʜᴏᴜʀꜱ.\n- ᴡʜᴇɴ ʏᴏᴜ ꜱᴛᴀʀᴛ ʟɪᴠᴇ ʏᴏᴜ ꜱʜᴏᴜʟᴅ ᴅᴏ ɪᴛ ᴏɴʟʏ ꜰᴏʀ 20 ᴍɪɴꜱ ᴀɴᴅ ᴛʜᴇɴ ᴄʜᴇᴄᴋ ᴛᴏ ɪꜰ ᴇɴᴅ ᴛʜᴇ ʟɪᴠᴇ ᴏʀ ɴᴏᴛ.\n\n__**ʜᴇʀᴇꜱ ᴡʜᴇɴ ᴛᴏ ᴇɴᴅ ᴀɴᴅ ᴡʜᴇɴ ᴛᴏ ɴᴏᴛ ᴛᴏ**__\n- ɪꜰ ᴀꜰᴛᴇʀ 20 ᴍɪɴꜱ ʏᴏᴜʀ ᴠɪᴇᴡᴇʀꜱ ᴀʀᴇ ʙᴇʟᴏᴡ 10 ᴛʜᴇɴ ᴇɴᴅ ʏᴏᴜʀ ʟɪᴠᴇ\n- ɪꜰ ᴛʜᴇʏʀᴇ ᴀʙᴏᴠᴇ 10 ᴛʜᴇɴ ʜᴇʀᴇꜱ ꜱᴍᴀʟʟ ᴄʜᴀɴᴄᴇ ᴏꜰ ɢᴏɪɴɢ ᴠɪʀᴀʟ\n- ᴀʙᴏᴠᴇ 20 ᴠɪᴇ��ᴇʀꜱ = ɢᴏᴏᴅ ᴄʜᴀɴᴄᴇ ᴛᴏ ɢᴏ ᴠɪʀᴀʟ\n- ᴀʙᴏᴠᴇ 40 ᴠɪᴇᴡᴇʀꜱ ɪꜱ ᴠᴇʀʏ ɢᴏᴏᴅ ᴋᴇᴇᴘ ɪᴛ ᴜᴘ ᴜɴᴛɪʟ ᴛʜᴇʏ ꜱᴛᴀʀᴛ ᴅʀᴏᴘᴘɪɴɢ!!\n\n**__ᴘᴜᴍᴘɪɴɢ ᴍᴇᴛʜᴏᴅ__**\nᴛʜɪꜱ ɪꜱ ᴀ ᴍᴇᴛʜᴏᴅ ᴛᴏ ᴛɪᴋᴛᴏᴋ ʟɪᴠᴇ ɢʀᴏᴡ ᴠɪᴇᴡᴇʀꜱ.\n- ʙᴀꜱɪᴄᴀʟʟʏ ᴊᴜꜱᴛ ɢᴏ ʟɪᴠᴇ ᴜɴᴛɪʟ ᴠɪᴇᴡᴇʀꜱ ɢʀᴏᴡ ᴀɴᴅ ᴡʜᴇɴ ᴛʜᴡʏ ᴅʀᴏᴘ ʙʏ ᴀ ʙɪᴛ ᴊᴜꜱᴛ ᴇɴᴅ ᴛʜᴇ ʟɪᴠᴇ ɪᴍᴍᴇᴅɪᴀᴛᴇʟʏ > ᴀɴᴅ ᴛʜᴇɴ ꜱᴛᴀʀᴛ ʟɪᴠᴇ ᴀʟᴍᴏꜱᴛ ɪᴍᴍᴇᴅɪᴀʟʟʏ ᴀɢᴀɪɴ ᴀɴᴅ ʀᴇᴘᴇᴀᴛ ᴛʜɪꜱ ᴜɴᴛɪʟ ʏᴏᴜ ʜᴀᴠᴇ ꜱᴛᴀʙʟᴇ ᴀ ʟɪᴠᴇ ᴡɪᴛʜ ʜᴜɴᴅʀᴇᴅꜱ ᴏꜰ ᴠɪᴇᴡᴇʀꜱ!!!\n\n**ʜᴇʀᴇꜱ ꜱᴏᴍᴇ ʀᴀɴᴅᴏᴍ ᴛᴜᴛᴏʀɪᴀʟ ᴠɪᴅꜱ ɪ ꜰᴏᴜɴᴅ ʏᴏᴜ ᴄᴀɴ ᴡᴀᴛᴄʜ ᴛᴏ ʟᴇᴀʀɴ, __ᴊᴜꜱᴛ__ ꜱᴛɪʟʟ ʀᴇᴀᴅ ꜰᴜʟʟ ᴛᴇxᴛ ᴏᴛʜᴇʀᴡɪꜱᴇ ʏᴏᴜ ᴡᴏɴᴛ ɢᴇᴛ ᴠɪᴇᴡᴇʀꜱ 😐**\nhttps://youtu.be/B-zZHryfuTs?si=XmrEatq2l3nyd0UP\nhttps://www.youtube.com/watch?v=RGaJMb7bRq8&t=1s"
       },
       {
         name: "ʙᴜʏɪɴɢ ꜱᴇʟʟɪɴɢ",
@@ -954,7 +1006,7 @@ client.on("messageCreate", async (message) => {
         name: "ᴛɪᴋᴛᴏᴋ ɴᴏᴛ ʟɪᴠᴇ",
         image1: "https://cdn.discordapp.com/attachments/1506434367491276812/1509399153321443388/image0_1.gif?ex=6a190901&is=6a17b781&hm=8d73fe9824d744a19022718c65a469779f8e8f9f86e82a0b5fda2f9010d9da5a",
         image2: "https://cdn.discordapp.com/attachments/1506434367491276812/1509394265141415936/1773637630733-5bee7763-8a95-48c0-8857-b9f2196e8d11.gif?ex=6a190473&is=6a17b2f3&hm=2866b7b7ca9eff6d39f1ccbc30640a1ee0fa62adac8619771cf9d455c329a76b",
-        body: "**── ᴛɪᴋᴛᴏᴋ (ɴᴏᴛ ʟɪᴠᴇ) ᴍᴇᴛʜ ──**\n\n**ᴄʀᴇᴀᴛᴇ ᴀɴ ᴛɪᴋᴛᴏᴋ ᴀᴄᴄᴏᴜɴᴛ ʀᴇʟᴀᴛᴇᴅ ᴛᴏ ᴛʜᴇ ɢᴀ��ᴇ ʏᴏᴜ ᴡᴀɴᴛ**\n\n**ᴄʜᴀɴɢᴇ ʏᴏᴜʀ ᴀᴄᴄᴏᴜɴᴛ ɪɴᴛᴏ ᴀ ʙᴜꜱɪɴᴇꜱꜱ ᴀᴄᴄ ꜱᴏ ʏᴏᴜ ᴄᴀɴ ᴘᴜᴛ ʟɪɴᴋꜱ ᴏɴ ʏᴏᴜʀ ʙɪᴏ**\n\n**ᴇɴᴊᴏ��, ɴᴏ ɴᴇᴇᴅ ᴛᴏ ʟɪᴠᴇꜱᴛʀᴇᴀᴍ**\n\nhttps://cdn.discordapp.com/attachments/1277482286232637544/1284084370898157578/lv_0_20240831184505.mp4?ex=673866c3&is=67371543&hm=95ece82de1fe102a7b89611da3f3915dc4baa2c94a5c9dc86545c8283c8d750f"
+        body: "**── ᴛɪᴋᴛᴏᴋ (ɴᴏᴛ ʟɪᴠᴇ) ᴍᴇᴛ�� ──**\n\n**ᴄʀᴇᴀᴛᴇ ᴀɴ ᴛɪᴋᴛᴏᴋ ᴀᴄᴄᴏᴜɴᴛ ʀᴇʟᴀᴛᴇᴅ ᴛᴏ ᴛʜᴇ ɢᴀ��ᴇ ʏᴏᴜ ᴡᴀɴᴛ**\n\n**ᴄʜᴀɴɢᴇ ʏᴏᴜʀ ᴀᴄᴄᴏᴜɴᴛ ɪɴᴛᴏ ᴀ ʙᴜꜱɪɴᴇꜱꜱ ᴀᴄᴄ ꜱᴏ ʏᴏᴜ ᴄᴀɴ ᴘᴜᴛ ʟɪɴᴋꜱ ᴏɴ ʏᴏᴜʀ ʙɪᴏ**\n\n**ᴇɴᴊᴏ��, ɴᴏ ɴᴇᴇᴅ ᴛᴏ ʟɪᴠᴇꜱᴛʀᴇᴀᴍ**\n\nhttps://cdn.discordapp.com/attachments/1277482286232637544/1284084370898157578/lv_0_20240831184505.mp4?ex=673866c3&is=67371543&hm=95ece82de1fe102a7b89611da3f3915dc4baa2c94a5c9dc86545c8283c8d750f"
       },
       {
         name: "ʀᴏʟɪᴍᴏɴꜱ ᴍᴇᴛʜᴏᴅ",
@@ -1070,7 +1122,7 @@ client.on("messageCreate", async (message) => {
     return;
   }
 
-  // ── !createbeamchannel ──
+  // ── !createbeamchannel ─��
   if (content === `${PREFIX}createbeamchannel`) {
     if (!message.guild) {
       await message.reply({ content: "This command can only be used in a server.", ephemeral: true });
@@ -3113,7 +3165,7 @@ client.on("interactionCreate", async (interaction) => {
     return;
   }
 
-  // ── Server category button pressed ──
+  // ��─ Server category button pressed ──
   if (interaction.isButton() && interaction.customId.startsWith("srv:")) {
     const index = parseInt(interaction.customId.split(":")[1], 10);
     const server = ROBLOX_SERVERS[index];
@@ -3235,7 +3287,7 @@ To gain access to the rest of the channels of this server you will need to verif
       .setTitle("<a:emoji_8:1506236357775720548> ᴘʀᴏᴅᴜᴄᴛ ʟɪꜱᴛ")
       .setDescription(
         "<:emoji_14:1508646444607864872> **ᴀᴜᴛᴏʜᴀʀ** — ᴀᴜᴛᴏᴍᴀᴛᴇᴅ ʜᴀʀᴠᴇꜱᴛɪɴɢ ᴛᴏᴏʟ\n" +
-        "<:emoji_14:1508646444607864872> **ɪᴘ ʟᴏᴄᴋ ʙʏᴘᴀꜱꜱ / ʀᴇꜰʀᴇꜱʜᴇʀ** — ʙʏᴘᴀꜱꜱ & ʀᴇꜰʀᴇꜱʜ ɪᴘ ʟᴏᴄᴋꜱ\n" +
+        "<:emoji_14:1508646444607864872> **ɪᴘ ʟᴏᴄᴋ ��ʏᴘᴀꜱꜱ / ʀᴇꜰʀᴇꜱʜᴇʀ** — ʙʏᴘᴀꜱꜱ & ʀᴇꜰʀᴇꜱʜ ɪᴘ ʟᴏᴄᴋꜱ\n" +
         "<:emoji_14:1508646444607864872> **ᴀɢᴇ ʙʏᴘᴀꜱꜱᴇʀ** — ʙʏᴘᴀꜱꜱ ᴀɢᴇ ʀᴇꜱᴛʀɪᴄᴛɪᴏɴꜱ ɪɴꜱᴛᴀɴᴛʟʏ\n" +
         "<:emoji_14:1508646444607864872> **ᴀᴄᴄᴏᴜɴᴛ ᴄʜᴇᴄᴋᴇʀ** — ʙᴜʟᴋ ᴀᴄᴄᴏᴜɴᴛ ���ᴀʟɪᴅᴀᴛɪᴏɴ\n" +
         "<:emoji_14:1508646444607864872> **ᴡᴇʙʜᴏᴏᴋ ꜱᴇɴᴅᴇʀ** — ꜱᴇɴᴅ ᴄᴜꜱᴛᴏᴍ ᴡᴇʙʜᴏᴏᴋꜱ\n" +

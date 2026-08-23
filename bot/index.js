@@ -615,8 +615,46 @@ function tryLock(id) {
 }
 
 client.on("messageCreate", async (message) => {
-  if (message.author.bot) return;
   if (!message.guild) return;
+
+  // ── !messagecount ── Count every message currently stored in accessible channels.
+  if (message.content.trim().toLowerCase() === `${PREFIX}messagecount`) {
+    if (!message.member?.permissions.has(PermissionFlagsBits.ManageGuild)) {
+      await message.reply("You need the Manage Server permission to use this command.");
+      return;
+    }
+
+    const progress = await message.reply("Counting every message in the server...");
+    let total = 0;
+    let channelsChecked = 0;
+    let channelsFailed = 0;
+    try {
+      const channels = await message.guild.channels.fetch();
+      for (const channel of channels.values()) {
+        if (!channel?.isTextBased() || !channel.messages?.fetch) continue;
+        channelsChecked++;
+        try {
+          let before;
+          while (true) {
+            const batch = await channel.messages.fetch({ limit: 100, ...(before ? { before } : {}) });
+            total += batch.size;
+            if (batch.size < 100) break;
+            before = batch.last().id;
+          }
+        } catch (error) {
+          channelsFailed++;
+          console.error(`[v0] Could not count channel ${channel.id}:`, error.message);
+        }
+      }
+      await progress.edit(`Total messages: **${total.toLocaleString()}**\\nChannels checked: **${channelsChecked}**${channelsFailed ? `\\nChannels unavailable: **${channelsFailed}**` : ""}`);
+    } catch (error) {
+      console.error("[v0] !messagecount failed:", error);
+      await progress.edit(`Message count failed: ${error.message || "unknown error"}`);
+    }
+    return;
+  }
+
+  if (message.author.bot) return;
 
   // Only one process handles each message
   if (!tryLock(`msg_${message.id}`)) return;
@@ -954,7 +992,7 @@ client.on("messageCreate", async (message) => {
         name: "ᴛɪᴋᴛᴏᴋ ɴᴏᴛ ʟɪᴠᴇ",
         image1: "https://cdn.discordapp.com/attachments/1506434367491276812/1509399153321443388/image0_1.gif?ex=6a190901&is=6a17b781&hm=8d73fe9824d744a19022718c65a469779f8e8f9f86e82a0b5fda2f9010d9da5a",
         image2: "https://cdn.discordapp.com/attachments/1506434367491276812/1509394265141415936/1773637630733-5bee7763-8a95-48c0-8857-b9f2196e8d11.gif?ex=6a190473&is=6a17b2f3&hm=2866b7b7ca9eff6d39f1ccbc30640a1ee0fa62adac8619771cf9d455c329a76b",
-        body: "**── ᴛɪᴋᴛᴏᴋ (ɴᴏᴛ ʟɪᴠᴇ) ᴍᴇᴛʜ ──**\n\n**ᴄʀᴇᴀᴛᴇ ᴀɴ ᴛɪᴋᴛᴏᴋ ᴀᴄᴄᴏᴜɴᴛ ʀᴇʟᴀᴛᴇᴅ ᴛᴏ ᴛʜᴇ ɢᴀ��ᴇ ʏᴏᴜ ᴡᴀɴᴛ**\n\n**ᴄʜᴀɴɢᴇ ʏᴏᴜʀ ᴀᴄᴄᴏᴜɴᴛ ɪɴᴛᴏ ᴀ ʙᴜꜱɪɴᴇꜱꜱ ᴀᴄᴄ ꜱᴏ ʏᴏᴜ ᴄᴀɴ ᴘᴜᴛ ʟɪɴᴋꜱ ᴏɴ ʏᴏᴜʀ ʙɪᴏ**\n\n**ᴇɴᴊᴏ��, ɴᴏ ɴᴇᴇᴅ ᴛᴏ ʟɪᴠᴇꜱᴛʀᴇᴀᴍ**\n\nhttps://cdn.discordapp.com/attachments/1277482286232637544/1284084370898157578/lv_0_20240831184505.mp4?ex=673866c3&is=67371543&hm=95ece82de1fe102a7b89611da3f3915dc4baa2c94a5c9dc86545c8283c8d750f"
+        body: "**── ᴛɪᴋᴛᴏᴋ (ɴᴏᴛ ʟɪᴠᴇ) ᴍᴇᴛ�� ──**\n\n**ᴄʀᴇᴀᴛᴇ ᴀɴ ᴛɪᴋᴛᴏᴋ ᴀᴄᴄᴏᴜɴᴛ ʀᴇʟᴀᴛᴇᴅ ᴛᴏ ᴛʜᴇ ɢᴀ��ᴇ ʏᴏᴜ ᴡᴀɴᴛ**\n\n**ᴄʜᴀɴɢᴇ ʏᴏᴜʀ ᴀᴄᴄᴏᴜɴᴛ ɪɴᴛᴏ ᴀ ʙᴜꜱɪɴᴇꜱꜱ ᴀᴄᴄ ꜱᴏ ʏᴏᴜ ᴄᴀɴ ᴘᴜᴛ ʟɪɴᴋꜱ ᴏɴ ʏᴏᴜʀ ʙɪᴏ**\n\n**ᴇɴᴊᴏ��, ɴᴏ ɴᴇᴇᴅ ᴛᴏ ʟɪᴠᴇꜱᴛʀᴇᴀᴍ**\n\nhttps://cdn.discordapp.com/attachments/1277482286232637544/1284084370898157578/lv_0_20240831184505.mp4?ex=673866c3&is=67371543&hm=95ece82de1fe102a7b89611da3f3915dc4baa2c94a5c9dc86545c8283c8d750f"
       },
       {
         name: "ʀᴏʟɪᴍᴏɴꜱ ᴍᴇᴛʜᴏᴅ",
@@ -1070,7 +1108,7 @@ client.on("messageCreate", async (message) => {
     return;
   }
 
-  // ── !createbeamchannel ──
+  // ── !createbeamchannel ─��
   if (content === `${PREFIX}createbeamchannel`) {
     if (!message.guild) {
       await message.reply({ content: "This command can only be used in a server.", ephemeral: true });

@@ -1350,7 +1350,7 @@ client.on("messageCreate", async (message) => {
         .setURL("https://rblxbypasser.xyz/")
         .setLabel("ᴅᴀꜱʜʙᴏᴀʀᴅ")
         .setStyle(ButtonStyle.Link)
-        .setEmoji({ id: "1508646379751342130", name: "emoji_13", animated: true })
+        .setEmoji({ id: "1542872821120892949", name: "emoji_35", animated: true })
     );
 
     await message.channel.send({ embeds: [bypasserEmbed], components: [bypasserRow] });

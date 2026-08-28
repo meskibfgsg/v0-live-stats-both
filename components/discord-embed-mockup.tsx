@@ -18,9 +18,11 @@ const EXAMPLE_FMT      = "[https://www.roblox.com/users/387872695312/profile](ht
 const GIF_URL          = "https://image2url.com/r2/default/gifs/1768488617981-bdc4c780-144f-4a40-8906-ddf01eadb705.gif";
 
 const WELCOME_DESC =
-  "**─── <a:emoji_8:1506236357775720548> `ɪɴꜱᴀɴɪᴛʏ   | ɢᴀᴛᴇᴡᴀʏ` <a:emoji_8:1506236357775720548> ───\n\n" +
-  "<a:emoji_3:1500695831169204295> ᴡᴇʟᴄᴏᴍᴇ ᴛᴏ ᴏᴜʀ ꜱᴇʀᴠᴇʀ ᴛʜᴀᴛ ʜᴀꜱ ᴍᴀɴʏ ꜰᴇᴀᴛᴜʀᴇꜱ ᴀɴᴅ ʙᴇꜱᴛ ꜱɪᴛᴇꜱ ᴇxɪꜱᴛ\n\n" +
-  "<:emoji_4:1501269124330950787> ʙᴇꜱᴛ ʙᴇᴀᴍ ꜱɪᴛᴇꜱ ᴏꜰ ᴀʟʟ ᴛɪᴍᴇ**";
+  "_ _\n" +
+  "_ _ <:copied_1343282962904649962:1542748500960219187>welcome\n" +
+  "_ _ <:copied_1343282962904649962:1542748500960219187>to **/atlas** <a:copied_1413818012141617162:1542748564910907392><:copied_1343282962904649962:1542748500960219187>\n" +
+  "_ _ <:copied_1343282962904649962:1542748500960219187> \n" +
+  "_ _";
 
 // ── Parse Discord custom emoji syntax into <img> tags ───────────────────────────
 // Handles: <a:name:id> (animated) and <:name:id> (static)
@@ -217,14 +219,6 @@ export default function DiscordEmbedMockup() {
             >
               {parseEmoji(WELCOME_DESC.replace(/\*\*/g, ""))}
             </p>
-            <div className="mt-3 rounded overflow-hidden">
-              <img
-                src={GIF_URL}
-                alt="Welcome banner"
-                className="w-full object-cover rounded"
-                style={{ maxHeight: 200 }}
-              />
-            </div>
           </div>
           {/* Footer with avatar */}
           <div
@@ -238,7 +232,7 @@ export default function DiscordEmbedMockup() {
               style={{ width: 16, height: 16 }}
             />
             <span className="text-[11px]" style={{ color: DC.muted }}>
-              Welcome exampleuser
+              20251 @ /atlas
             </span>
           </div>
         </div>

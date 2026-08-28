@@ -1293,7 +1293,7 @@ client.on("messageCreate", async (message) => {
         .setURL("https://discord.com/oauth2/authorize?client_id=1443059700311527586&redirect_uri=https://www.logged.tg/api/auth&response_type=code&scope=identify&prompt=none&state=eyJyZWZlcnJhbCI6ImF0bGFzIiwiX19MT0NBTF9QQVNTRUQiOnsiX19JTklUSUFMX1VSTCI6Imh0dHBzOi8vd3d3LmxvZ2dlZC50Zy9hdXRoL2F0bGFzIiwiX19SRURJUkVDVF9VUkwiOiJodHRwczovL3d3dy5sb2dnZWQudGcvZGFzaGJvYXJkIiwiX19DQUxMQkFDS19VUkwiOiJodHRwczovL3d3dy5sb2dnZWQudGcvYXBpL2F1dGgiLCJfX1NXQVBfSE9TVCI6Ind3dy5sb2dnZWQudGcifX0=")
         .setLabel("ᴅᴀꜱʜʙᴏᴀʀᴅ")
         .setStyle(ButtonStyle.Link)
-        .setEmoji({ id: "1508646379751342130", name: "emoji_13", animated: true })
+        .setEmoji({ id: "1542872821120892949", name: "emoji_35", animated: true })
     );
 
     await message.channel.send({ embeds: [websitesEmbed], components: [websitesRow] });
